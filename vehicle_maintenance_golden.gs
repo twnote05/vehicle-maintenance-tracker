@@ -1,11 +1,12 @@
 /**
  * Vehicle Maintenance Tracking System - OPTIMIZED for Older Drivers
  * Features simplified UI, practical functions, and easy monitoring
+ * Multi-device responsive design included
  */
 
-// ============================================================
+/* ============================================================
 // CONFIGURATION
-// ============================================================
+// ============================================================*/
 const SS = SpreadsheetApp.getActiveSpreadsheet();
 const MAINTENANCE_SHEET = 'Maintenance_Log';
 const VEHICLE_INFO_SHEET = 'VehicleInfo';
@@ -25,9 +26,9 @@ const COL_COST = 5;
 const COL_NOTES = 6;
 const COL_CREATED = 7;
 
-// ============================================================
+/* ============================================================
 // onOpen - Add simplified custom menu when spreadsheet opens
-// ============================================================
+// ============================================================*/
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('🚗 Vehicle Tracker')
@@ -36,70 +37,149 @@ function onOpen() {
     .addToUi();
 }
 
-// ============================================================
+/* ============================================================
 // showQuickAddDialog - Simplified add record for older drivers
-// ============================================================
+// Responsive: adapts to screen size via CSS
+// ============================================================*/
 function showQuickAddDialog() {
   const html = HtmlService.createHtmlOutput(`
-    <div style="padding: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 350px;">
-      <h3 style="color: #2c3e50; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-        Add Maintenance Record
-      </h3>
-      
-      <!-- Vehicle selection - simplified -->
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; font-weight: bold; color: #555; font-size: 13px; margin-bottom: 5px;">
-          Vehicle
-        </label>
-        <select id="vehicleSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-          <option value="">Select vehicle...</</option>
-          ${getVehicleOptions()}
-        </select>
-      </div>
-      
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; font-weight: bold; color: #555; font-size: 13px; margin-bottom: 5px;">
-          Service Type
-        </label>
-        <input type="text" id="serviceType" placeholder="e.g., Oil Change" 
-               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-      </div>
-      
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; font-weight: bold; color: #555; font-size: 13px; margin-bottom: 5px;">
-          Mileage
-        </label>
-        <input type="number" id="mileage" min="0" step="1000" 
-               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-      </div>
-      
-      <div style="margin-bottom: 20px;">
-        <label style="display: block; font-weight: bold; color: #555; font-size: 13px; margin-bottom: 5px;">
-          Cost (THB)
-        </label>
-        <input type="number" id="cost" min="0" step="100" 
-               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-        <div style="margin-top: 5px; font-size: 11px; color: #666;">
-          Typical: Oil Change ~${OIL_CHANGE_COST}, Major Service ~${MAJOR_SERVICE_COST} THB
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+      <style>
+        /* Responsive container */
+        .responsive-container { max-width: 100%; width: 100%; }
+        
+        /* Base styles - mobile first */
+        body { 
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+          margin: 0; padding: 0; 
+          background: #fafafa; 
+        }
+        .dialog-content { 
+          background: white; 
+          border-radius: 8px; 
+          padding: 20px; 
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        h3 { 
+          color: #2c3e50; 
+          margin: 0 0 15px 0; 
+          padding-bottom: 8px; 
+          border-bottom: 1px solid #eee; 
+          font-size: 16px; 
+        }
+        
+        label { 
+          display: block; 
+          font-weight: bold; 
+          color: #555; 
+          font-size: 13px; 
+          margin-bottom: 5px; 
+        }
+        
+        input, select { 
+          width: 100%; 
+          padding: 10px; 
+          border: 1px solid #ddd; 
+          border-radius: 4px; 
+          font-size: 14px; 
+          box-sizing: border-box; /* Ensures padding doesn't affect width */
+        }
+        
+        input[type="number"] { 
+          padding: 8px; 
+        }
+        
+        button { 
+          width: 100%; 
+          background-color: #27ae60; 
+          color: white; 
+          padding: 12px; 
+          border: none; 
+          border-radius: 4px; 
+          cursor: pointer; 
+          font-size: 14px; 
+          margin-top: 10px; 
+        }
+        
+        .error { 
+          color: #e74c3c; 
+          font-size: 12px; 
+          margin-bottom: 10px; 
+          background: #fdf2f2; 
+          padding: 8px; 
+          border-radius: 4px; 
+          display: none; 
+        }
+        
+        .hint { 
+          font-size: 11px; 
+          color: #666; 
+          margin-top: 5px; 
+        }
+        
+        /* Reduce font size on very small screens */
+        @media (max-width: 320px) {
+          label { font-size: 12px; }
+          input, select { font-size: 13px; padding: 8px; }
+          button { font-size: 13px; padding: 10px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="responsive-container dialog-content">
+        <h3>Add Maintenance Record</h3>
+        
+        <!-- Vehicle selection -->
+        <div style="margin-bottom: 15px;">
+          <label>Vehicle</label>
+          <select id="vehicleSelect" style="padding: 8px; font-size: 13px;">
+            <option value="">Select vehicle...</option>
+            ${getVehicleOptions()}
+          </select>
+        </div>
+        
+        <!-- Service Type -->
+        <div style="margin-bottom: 15px;">
+          <label>Service Type</label>
+          <input type="text" id="serviceType" placeholder="e.g., Oil Change">
+        </div>
+        
+        <!-- Mileage -->
+        <div style="margin-bottom: 15px;">
+          <label>Mileage</label>
+          <input type="number" id="mileage" min="0" step="1000">
+        </div>
+        
+        <!-- Cost -->
+        <div style="margin-bottom: 20px;">
+          <label>Cost (THB)</label>
+          <input type="number" id="cost" min="0" step="100">
+          <div class="hint">Typical: Oil Change ~${OIL_CHANGE_COST}, Major Service ~${MAJOR_SERVICE_COST} THB</div>
+        </div>
+        
+        <!-- Error message -->
+        <div id="errorMsg" class="error" style="display: none;"></div>
+        
+        <div style="text-align: right; margin-top: 20px;">
+          <button onclick="submitQuickRecord()">Add Record</button>
         </div>
       </div>
-      
-      <div style="text-align: right; margin-top: 20px;">
-        <button onclick="submitQuickRecord()" 
-                style="background-color: #27ae60; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; width: 100%;">
-          Add Record
-        </button>
-      </div>
-    </div>
+    </body>
+    </html>
   `);
   html.setWidth(400);
   html.setHeight(350);
   SpreadsheetApp.getUi().showModalDialog(html, 'Add Record');
 }
 
-// ============================================================
+/* ============================================================
 // submitQuickRecord - Quick submission with minimal fields
-// ============================================================
+// ============================================================*/
 function submitQuickRecord() {
   const vehicle = document.getElementById('vehicleSelect').value;
   const serviceType = document.getElementById('serviceType').value;
@@ -108,7 +188,7 @@ function submitQuickRecord() {
   
   // Validation - only require service type and either vehicle or cost
   if (!serviceType) {
-    SpreadsheetApp.getUi().alert('Please enter the service type');
+    showError('Please enter the service type');
     return;
   }
   
@@ -140,9 +220,19 @@ function submitQuickRecord() {
   setTimeout(() => { google.script.host.close(); }, 1000);
 }
 
-// ============================================================
+/* ============================================================
+// showError - Display error message in dialog
+// ============================================================*/
+function showError(message) {
+  const errorDiv = document.getElementById('errorMsg');
+  errorDiv.style.display = 'block';
+  errorDiv.innerText = message;
+}
+
+/* ============================================================
 // showDashboard - Simplified dashboard for vehicle health monitoring
-// ============================================================
+// Responsive: adapts layout based on screen width
+// ============================================================*/
 function showDashboard() {
   const sheet = SS.getSheetByName(MAINTENANCE_SHEET);
   const vehicleSheet = SS.getSheetByName(VEHICLE_INFO_SHEET);
@@ -236,76 +326,198 @@ function showDashboard() {
   if (healthScore < 40) healthColor = '#e74c3c';
   else if (healthScore < 70) healthColor = '#f39c12';
   
-  let html = `<div style="padding: 15px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px;">
-    <h3 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-      📊 Vehicle Health Dashboard
-    </h3>
-    
-    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <span style="font-size: 14px; color: #555;">Vehicle Health Score</span>
-        <span style="color: ${healthColor}; font-weight: bold; font-size: 24px;">${healthScore}/100</span>
-      </div>
-      <div style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;">
-        <span style="font-size: 12px; color: #888;">Based on ${totalRecords} records across ${vehiclesCount.size} vehicle(s)</span>
-      </div>
-    </div>
-    
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-      <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div style="font-size: 12px; color: #888; margin-bottom: 5px;">Total Spent</div>
-        <div style="font-size: 24px; font-weight: bold; color: #2c3e50;">${totalCost.toLocaleString()} THB</div>
-      </div>
-      <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div style="font-size: 12px; color: #888; margin-bottom: 5;">Records</div>
-        <div style="font-size: 24px; font-weight: bold; color: #2c3e50;">${totalRecords}</div>
-      </div>
-      <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div style="font-size: 12px; color: #888; margin-bottom: 5;">Vehicle(s)</div>
-        <div style="font-size: 24px; font-weight: bold; color: #2c3e50;">${vehiclesCount.size}</div>
-      </div>
-      <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <div style="font-size: 12px; color: #888; margin-bottom: 5;">Last Service</div>
-        <div style="font-size: 14px; color: #555;">${lastServiceDate ? Utilities.formatDate(lastServiceDate, Session.getScriptTimeZone(), 'MMM d, yyyy') : 'No records'}</div>
-      </div>
-    </div>
-    
-    ${overdueItems.length > 0 ? `
-    <div style="background: #faebc1; border: 1px solid #f39c12; padding: 15px; border-radius: 8px; margin: 20px 0;">
-      <div style="font-size: 13px; font-weight: bold; color: #e67e22; margin-bottom: 10px;">
-        ⚠️ Maintenance Alerts (${overdueItems.length})
-      </div>
-      ${overdueItems.map(item => `
-        <div style="font-size: 12px; margin: 8px 0; padding: 8px; background: #fff; border-radius: 4px;">
-          ${item.vehicle}: Next service due at ${item.nextDue.toLocaleString()} miles (currently at ${item.currentMileage.toLocaleString()})
+  // Calculate responsive layout - determine if we're on mobile or desktop
+  const isMobile = window.innerWidth < 600;
+  
+  let html = `<!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+      <style>
+        /* Responsive container */
+        .responsive-container { max-width: 100%; width: 100%; }
+        
+        /* Base styles - mobile first */
+        body { 
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+          margin: 0; padding: 0; 
+          background: #fafafa; 
+          color: #333;
+        }
+        .dialog-content { 
+          background: white; 
+          border-radius: 8px; 
+          padding: 20px; 
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        h3 { 
+          color: #2c3e50; 
+          margin: 0 0 20px 0; 
+          padding-bottom: 10px; 
+          border-bottom: 1px solid #eee; 
+          font-size: 18px; 
+        }
+        
+        .stat-card { 
+          background: white; 
+          padding: 15px; 
+          border-radius: 8px; 
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+          text-align: center; 
+          margin-bottom: 15px;
+        }
+        
+        .stat-label { 
+          font-size: 12px; 
+          color: #888; 
+          margin-bottom: 5px; 
+          display: block;
+        }
+        
+        .stat-value { 
+          font-size: 20px; 
+          font-weight: bold; 
+          color: #2c3e50; 
+        }
+        
+        .row { 
+          margin: 10px 0; 
+        }
+        
+        .row:after { content: ""; display: table; clear: both; }
+        
+        .col { 
+          float: left; 
+          width: 50%; 
+          padding: 0 10px;
+        }
+        
+        @media (max-width: 500px) {
+          .col { width: 100%; }
+        }
+        
+        .alert-card { 
+          background: #faebc1; 
+          border: 1px solid #f39c12; 
+          padding: 15px; 
+          border-radius: 8px; 
+          margin: 20px 0;
+        }
+        
+        .alert-title { 
+          font-size: 13px; 
+          font-weight: bold; 
+          color: #e67e22; 
+          margin-bottom: 10px;
+        }
+        
+        .alert-item { 
+          font-size: 12px; 
+          margin: 8px 0; 
+          padding: 8px; 
+          background: #fff; 
+          border-radius: 4px;
+        }
+        
+        .vehicle-list { 
+          margin: 20px 0; 
+        }
+        
+        .vehicle-item { 
+          font-size: 12px; 
+          margin: 4px 0; 
+        }
+        
+        .tip-box { 
+          background: #e8f6ff; 
+          padding: 15px; 
+          border-radius: 8px; 
+          font-size: 12px; 
+          color: #555; 
+          margin: 20px 0;
+        }
+        
+        /* Reduce padding on very small screens */
+        @media (max-width: 400px) {
+          .dialog-content { padding: 15px; }
+          .stat-value { font-size: 16px; }
+          .alert-item { font-size: 11px; padding: 6px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="responsive-container dialog-content">
+        <h3>📊 Vehicle Health Dashboard</h3>
+        
+        <!-- Health Score -->
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 14px; color: #555;">Vehicle Health Score</span>
+            <span style="color: ${healthColor}; font-weight: bold; font-size: ${isMobile ? '20px' : '24px'}">${healthScore}/100</span>
+          </div>
+          <div style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;">
+            <span style="font-size: 12px; color: #888;">Based on ${totalRecords} records across ${vehiclesCount.size} vehicle(s)</span>
+          </div>
         </div>
-      `).join('')}
-    </div>
-    ` : ''}
-    
-    ${vehicleNames.length > 0 ? `
-    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
-      <div style="font-size: 13px; color: #555; margin-bottom: 10px;">Your Vehicles</div>
-      ${vehicleNames.map(v => `<div style="font-size: 12px; margin: 4px 0;">• ${v}</div>`).join('')}
-      ${vehicleDetails ? `<div style="font-size: 11px; color: #888; margin-top: 5px;">${vehicleDetails}</div>` : ''}
-    </div>
-    ` : ''}
-    
-    <div style="margin-top: 20px; padding: 15px; background: #e8f6ff; border-radius: 8px; font-size: 12px; color: #555;">
-      <strong>Tip:</strong> Add records regularly to keep your vehicle's health score accurate. 
-      Consider oil changes every ${INTERVAL_MILEAGE} miles or every ${INTERVAL_MONTHS} months.
-    </div>
-  </div>`;
+        
+        <!-- Summary Stats -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+          <div class="stat-card">
+            <div class="stat-label">Total Spent</div>
+            <div class="stat-value">${totalCost.toLocaleString()} THB</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Records</div>
+            <div class="stat-value">${totalRecords}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Vehicle(s)</div>
+            <div class="stat-value">${vehiclesCount.size}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Last Service</div>
+            <div class="stat-value">${lastServiceDate ? Utilities.formatDate(lastServiceDate, Session.getScriptTimeZone(), 'MMM d, yyyy') : 'No records'}</div>
+          </div>
+        </div>
+        
+        ${overdueItems.length > 0 ? `
+        <div class="alert-card">
+          <div class="alert-title">⚠️ Maintenance Alerts (${overdueItems.length})</div>
+          ${overdueItems.map(item => `
+            <div class="alert-item">
+              ${item.vehicle}: Next service due at ${item.nextDue.toLocaleString()} miles (currently at ${item.currentMileage.toLocaleString()})
+            </div>
+          `).join('')}
+        </div>
+        ` : ''}
+        
+        ${vehicleNames.length > 0 ? `
+        <div style="margin: 20px 0;">
+          <div style="font-size: 13px; color: #555; margin-bottom: 10px;">Your Vehicles</div>
+          ${vehicleNames.map(v => `<div style="font-size: 12px; margin: 4px 0;">• ${v}</div>`).join('')}
+          ${vehicleDetails ? `<div style="font-size: 11px; color: #888; margin-top: 5px;">${vehicleDetails}</div>` : ''}
+        </div>
+        ` : ''}
+        
+        <div class="tip-box">
+          <strong>Tip:</strong> Add records regularly to keep your vehicle's health score accurate. 
+          Consider oil changes every ${INTERVAL_MILEAGE} miles or every ${INTERVAL_MONTHS} months.
+        </div>
+      </div>
+    </body>
+    </html>`;
   
   const htmlOutput = HtmlService.createHtmlOutput(html);
-  htmlOutput.setWidth(650);
-  htmlOutput.setHeight(550);
+  htmlOutput.setWidth(isMobile ? 350 : 650);
+  htmlOutput.setHeight(isMobile ? 500 : 550);
   SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Vehicle Dashboard');
 }
 
-// ============================================================
-// Add helper functions from original code (getVehicleOptions, etc.)
-// ============================================================
+/* ============================================================
+// Add helper functions from original code
+// ============================================================*/
 
 function getVehicleOptions() {
   const vehicleSheet = SS.getSheetByName(VEHICLE_INFO_SHEET);
@@ -339,7 +551,6 @@ function addRecordViaWeb(e) {
   const serviceType = e.parameter.serviceType;
   const mileage = e.parameter.mileage;
   const cost = e.parameter.cost;
-  const notes = e.parameter.notes;
   
   if (!vehicle || !serviceType) {
     return ContentService.createTextOutput(JSON.stringify({success: false, error: 'Missing required fields'}))
@@ -359,7 +570,7 @@ function addRecordViaWeb(e) {
     serviceType,
     parseInt(mileage) || 0,
     parseInt(cost) || 0,
-    notes || '',
+    '',
     now
   ];
   
@@ -368,7 +579,6 @@ function addRecordViaWeb(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// Keep other utility functions...
 function openWebApp() {
   const url = 'https://script.google.com/macros/s/AKfycbwhqM4DZKR3wPiym5DUn5nI3CV0_H7FMvQBPb5YhLeyBnCGUk7x8i4I0Scp8SfR9jXJ1A/exec';
   const htmlService = HtmlService.createHtmlOutput(`<script>window.open('${url}', '_blank');</script>`);
