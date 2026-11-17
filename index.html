@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1f5c3a">
+<title>ดูแลรถ</title>
+<style>
+:root{--bg:#f6f2ea;--card:#fff;--ink:#1d1b16;--sub:#55504a;--line:#cfc7b8;--brand:#1f5c3a;--brand-d:#174a2f;
+--ok:#1f6b3a;--ok-bg:#e3f2e8;--soon:#7a4b00;--soon-bg:#fdf0cf;--bad:#9b1c1c;--bad-bg:#fbe4e1}
+*{box-sizing:border-box}
+body{margin:0;padding:16px 16px 40px;background:var(--bg);color:var(--ink);font:18px/1.5 'Sarabun','Noto Sans Thai','Segoe UI',Tahoma,sans-serif}
+.wrap{max-width:560px;margin:0 auto}
+h1{font-size:24px;margin:0 0 12px;line-height:1.25}
+nav{display:flex;gap:8px;margin-bottom:20px}
+nav a{flex:1;text-align:center;padding:12px 6px;min-height:48px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font-weight:700;text-decoration:none}
+nav a[aria-current=page]{background:var(--brand);border-color:var(--brand);color:#fff}
+label{display:block;font-weight:700;margin:0 0 6px}
+.opt{font-weight:400;color:var(--sub)}
+.f{margin-bottom:18px}
+input,select{width:100%;min-height:52px;padding:10px 14px;font:inherit;color:inherit;background:var(--card);border:2px solid var(--line);border-radius:10px}
+input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid #1b6fd1;outline-offset:2px}
+::selection{background:#bfe0c9}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{min-height:44px;padding:6px 14px;font:inherit;background:var(--card);border:2px solid var(--line);border-radius:22px;cursor:pointer;color:var(--ink)}
+.chip[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn{display:block;width:100%;min-height:58px;font:inherit;font-weight:700;font-size:20px;color:#fff;background:var(--brand);border:0;border-radius:12px;cursor:pointer;padding:14px}
+.btn:hover{background:var(--brand-d)}
+.btn.alt{background:var(--card);color:var(--ink);border:2px solid var(--line);font-size:18px;min-height:52px}
+.btn.alt:hover{background:#ece8df}
+.msg{padding:12px 14px;border-radius:10px;margin-bottom:16px;font-weight:700}
+.msg.err{background:var(--bad-bg);color:var(--bad)}.msg.good{background:var(--ok-bg);color:var(--ok)}
+.hint{color:var(--sub);font-size:16px;margin-top:4px}
+.car{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.car h2{font-size:21px;margin:0 0 8px}
+.tag{display:inline-block;padding:4px 12px;border-radius:16px;font-weight:700;margin-bottom:8px}
+.ok{background:var(--ok-bg);color:var(--ok)}.soon{background:var(--soon-bg);color:var(--soon)}
+.overdue{background:var(--bad-bg);color:var(--bad)}.none{background:#ece8df;color:var(--sub)}
+.meta{color:var(--sub);font-size:16px;margin:6px 0 0;font-variant-numeric:tabular-nums}
+.empty{padding:24px;text-align:center;color:var(--sub)}
+.rec{display:flex;gap:12px;align-items:center;justify-content:space-between;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.rec b{display:block}
+.del{min-height:44px;padding:6px 14px;font:inherit;color:var(--bad);background:var(--card);border:2px solid var(--bad);border-radius:10px;cursor:pointer}
+.row2{display:grid;gap:10px;margin-top:20px}
+@media(min-width:700px){body{padding:32px}.row2{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:no-preference){.btn,.chip{transition:background .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ดูแลรถ</h1>
+  <nav aria-label="เมนู">
+    <a href="#add">บันทึกงาน</a><a href="#health">สุขภาพรถ</a><a href="#history">ประวัติ</a><a href="#settings">ตั้งค่า</a>
+  </nav>
+  <p id="sync" class="hint" role="status"></p>
+  <main id="main"></main>
+</div>
+<script>
+const KEY='smart-old-car:v1', OIL_KM=5000, OIL_MONTHS=6, SOON=0.8, OIL_RE=/น้ำมันเครื่อง|oil/i;
+const TYPES=['เปลี่ยนน้ำมันเครื่อง','เปลี่ยนยาง','เปลี่ยนแบตเตอรี่','เปลี่ยนผ้าเบรก','ตรวจเช็คระยะ','อื่นๆ'];
+const th=n=>Number(n).toLocaleString('th-TH');
+const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+let recs=[];
+try{recs=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(recs));return true}catch(e){return false}};
+
+// ---- Google Sheet (ผ่าน Apps Script API). ไม่ตั้งค่า = เก็บในเครื่องอย่างเดียว ----
+let cfg={url:'',token:''};
+try{cfg={...cfg,...JSON.parse(localStorage.getItem(KEY+':cfg'))}}catch(e){}
+const remoteOn=()=>!!(cfg.url&&cfg.token);
+async function api(body){
+  const r=body?await fetch(cfg.url,{method:'POST',body:JSON.stringify({token:cfg.token,...body})})
+              :await fetch(cfg.url+'?token='+encodeURIComponent(cfg.token));
+  const j=await r.json();
+  if(!j.ok)throw new Error(j.error||'ผิดพลาด');
+  return j;
+}
+const setSync=t=>document.getElementById('sync').textContent=t;
+async function pull(){
+  if(!remoteOn())return setSync('เก็บในเครื่องนี้เท่านั้น (ยังไม่ได้เชื่อม Google Sheet)');
+  setSync('กำลังโหลดจาก Google Sheet…');
+  try{recs=(await api()).rows;save();setSync('เชื่อม Google Sheet แล้ว');render()}
+  catch(e){setSync('เชื่อม Google Sheet ไม่ได้ ('+e.message+') กำลังแสดงข้อมูลที่จำไว้ในเครื่อง')}
+}
+
+// el('div',{class:'x'},child|text,...) — text goes through createTextNode, so no HTML injection
+function el(tag,attrs={},...kids){
+  const n=document.createElement(tag);
+  for(const k in attrs){k.startsWith('on')?n[k]=attrs[k]:n.setAttribute(k,attrs[k])}
+  kids.flat().forEach(c=>c!=null&&n.append(c.nodeType?c:document.createTextNode(c)));
+  return n;
+}
+const msgBox=()=>el('div',{role:'alert',hidden:''});
+function say(box,t,k){box.className='msg '+k;box.textContent=t;box.hidden=false}
+
+function health(){
+  const by={};
+  recs.forEach(r=>{
+    const c=by[r.vehicle]||(by[r.vehicle]={vehicle:r.vehicle,km:0,oil:null,spent:0,count:0});
+    c.count++;c.spent+=+r.cost||0;c.km=Math.max(c.km,+r.km||0);
+    if(OIL_RE.test(r.type)&&(!c.oil||r.date>c.oil.date))c.oil={date:r.date,km:+r.km||0};
+  });
+  const now=Date.now();
+  return Object.values(by).map(c=>{
+    let status='none',msg='ยังไม่เคยบันทึกการเปลี่ยนน้ำมันเครื่อง';
+    if(c.oil){
+      const d=new Date(c.oil.date),months=(now-d)/(30.44*864e5),kmSince=c.oil.km&&c.km?c.km-c.oil.km:0;
+      const ratio=Math.max(kmSince/OIL_KM,months/OIL_MONTHS);
+      status=ratio>=1?'overdue':ratio>=SOON?'soon':'ok';
+      const next=new Date(d.getTime()+OIL_MONTHS*30.44*864e5).toLocaleDateString('th-TH');
+      msg=(status==='overdue'?'เกินกำหนดเปลี่ยนน้ำมันเครื่อง':'เปลี่ยนน้ำมันเครื่องครั้งต่อไป')+' ภายใน '+next+(c.oil.km?' หรือที่ '+th(c.oil.km+OIL_KM)+' กม.':'');
+    }
+    return{...c,status,msg};
+  }).sort((a,b)=>['overdue','soon','none','ok'].indexOf(a.status)-['overdue','soon','none','ok'].indexOf(b.status));
+}
+
+function viewAdd(){
+  const box=msgBox();
+  const cars=[...new Set(recs.map(r=>r.vehicle))];
+  const last=recs.length?recs[recs.length-1].vehicle:'';
+  const v=el('input',{id:'v',list:'cars',autocomplete:'off',placeholder:'เช่น Honda CR-V',value:last});
+  const t=el('input',{id:'t',autocomplete:'off',placeholder:'พิมพ์ หรือกดเลือกด้านล่าง'});
+  const k=el('input',{id:'k',type:'number',inputmode:'numeric',min:'0',placeholder:'เช่น 85000'});
+  const c=el('input',{id:'c',type:'number',inputmode:'numeric',min:'0',placeholder:'เช่น 1800'});
+  const d=el('input',{id:'d',type:'date',value:today(),max:today()});
+  const chips=TYPES.map(x=>el('button',{type:'button',class:'chip','aria-pressed':'false',onclick:()=>{t.value=x;sync()}},x));
+  const sync=()=>chips.forEach(b=>b.setAttribute('aria-pressed',b.textContent===t.value));
+  t.oninput=sync;
+  const go=el('button',{class:'btn',type:'submit'},'บันทึก');
+  const f=el('form',{novalidate:'',onsubmit:async e=>{
+    e.preventDefault();
+    if(!v.value.trim())return say(box,'กรุณาใส่ชื่อรถ','err'),v.focus();
+    if(!t.value.trim())return say(box,'กรุณาเลือกหรือพิมพ์ว่าทำอะไรไป','err'),t.focus();
+    if(k.value<0||c.value<0)return say(box,'เลขไมล์และค่าใช้จ่ายต้องไม่ติดลบ','err');
+    const rec={id:Date.now(),date:d.value||today(),vehicle:v.value.trim(),type:t.value.trim(),km:k.value===''?'':+k.value,cost:c.value===''?'':+c.value};
+    go.disabled=true;go.textContent='กำลังบันทึก…';
+    try{
+      if(remoteOn())await api({action:'add',rec});
+      recs.push(rec);
+      if(!save()&&!remoteOn()){recs.pop();throw new Error('พื้นที่เก็บข้อมูลของเบราว์เซอร์ใช้ไม่ได้ (โหมดส่วนตัว?)')}
+      t.value=k.value=c.value='';sync();say(box,remoteOn()?'บันทึกลง Google Sheet เรียบร้อยแล้ว':'บันทึกเรียบร้อยแล้ว','good');
+    }catch(er){say(box,'บันทึกไม่สำเร็จ: '+er.message+' ลองกดบันทึกอีกครั้ง','err')}
+    go.disabled=false;go.textContent='บันทึก';
+  }},
+    el('div',{class:'f'},el('label',{for:'v'},'รถคันไหน'),v,el('datalist',{id:'cars'},cars.map(x=>el('option',{value:x})))),
+    el('div',{class:'f'},el('label',{for:'t'},'ทำอะไรไป'),t,el('div',{class:'chips'},chips)),
+    el('div',{class:'f'},el('label',{for:'d'},'วันที่'),d),
+    el('div',{class:'f'},el('label',{for:'k'},'เลขไมล์ตอนนี้ ',el('span',{class:'opt'},'(ไม่บังคับ)')),k,el('div',{class:'hint'},'หน่วย กม. ช่วยให้เตือนรอบเปลี่ยนน้ำมันได้แม่นขึ้น')),
+    el('div',{class:'f'},el('label',{for:'c'},'ค่าใช้จ่าย ',el('span',{class:'opt'},'(บาท, ไม่บังคับ)')),c),
+    go);
+  return[box,f];
+}
+
+function viewHealth(){
+  const L={ok:'ปกติ',soon:'ใกล้ถึงกำหนด',overdue:'เกินกำหนด',none:'ยังไม่มีข้อมูล'},hs=health();
+  if(!hs.length)return[el('div',{class:'empty'},'ยังไม่มีบันทึก กดเมนู "บันทึกงาน" เพื่อเริ่มต้น')];
+  return[...hs.map(c=>el('section',{class:'car'},
+    el('h2',{},c.vehicle),el('span',{class:'tag '+c.status},L[c.status]),el('div',{},c.msg),
+    el('p',{class:'meta'},`${c.count} รายการ · ใช้ไปแล้ว ${th(c.spent)} บาท`+(c.km?` · ไมล์ล่าสุด ${th(c.km)} กม.`:'')))),
+    el('p',{class:'hint'},`เปลี่ยนน้ำมันเครื่องทุก ${th(OIL_KM)} กม. หรือ ${OIL_MONTHS} เดือน แล้วแต่อย่างไหนถึงก่อน`)];
+}
+
+function viewHistory(){
+  const box=msgBox();
+  const list=[...recs].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).map(r=>el('div',{class:'rec'},
+    el('div',{},el('b',{},r.type),el('span',{class:'meta'},`${r.vehicle} · ${new Date(r.date).toLocaleDateString('th-TH')}`+(r.km!==''?` · ${th(r.km)} กม.`:'')+(r.cost!==''?` · ${th(r.cost)} บาท`:''))),
+    el('button',{class:'del','aria-label':'ลบ '+r.type,onclick:async()=>{
+      if(!confirm('ลบรายการ "'+r.type+'" ใช่ไหม? ลบแล้วกู้คืนไม่ได้'))return;
+      try{if(remoteOn())await api({action:'del',id:r.id})}catch(er){return say(box,'ลบไม่สำเร็จ: '+er.message,'err')}
+      recs=recs.filter(x=>x.id!==r.id);save();render();
+    }},'ลบ')));
+  const file=el('input',{type:'file',accept:'application/json',hidden:'',onchange:async e=>{
+    try{
+      const data=JSON.parse(await e.target.files[0].text());
+      if(!Array.isArray(data)||!data.every(r=>r&&r.vehicle&&r.type&&r.date))throw 0;
+      if(!confirm('นำเข้า '+data.length+' รายการ? ข้อมูลปัจจุบันจะถูกแทนที่'))return;
+      recs=data;save();render();
+    }catch(_){say(box,'ไฟล์ไม่ถูกต้อง ใช้ไฟล์สำรองที่โหลดจากแอปนี้เท่านั้น','err')}
+  }});
+  const backup=el('button',{class:'btn alt',onclick:()=>{
+    const a=el('a',{href:URL.createObjectURL(new Blob([JSON.stringify(recs,null,1)],{type:'application/json'})),download:'ดูแลรถ-สำรอง-'+today()+'.json'});
+    a.click();URL.revokeObjectURL(a.href);
+  }},'โหลดไฟล์สำรอง');
+  return[box,...(list.length?list:[el('div',{class:'empty'},'ยังไม่มีรายการ')]),
+    ...(remoteOn()?[el('div',{class:'row2'},backup)]
+    :[el('p',{class:'hint'},'ข้อมูลเก็บในเครื่องนี้เท่านั้น เปลี่ยนมือถือหรือล้างข้อมูลเบราว์เซอร์แล้วจะหาย เชื่อม Google Sheet ที่เมนู "ตั้งค่า" หรือโหลดไฟล์สำรองไว้เป็นระยะ'),
+      el('div',{class:'row2'},backup,el('button',{class:'btn alt',onclick:()=>file.click()},'นำเข้าไฟล์สำรอง'),file)])];
+}
+
+function viewSettings(){
+  const box=msgBox();
+  const u=el('input',{id:'u',type:'url',autocomplete:'off',placeholder:'https://script.google.com/macros/s/…/exec',value:cfg.url});
+  const tk=el('input',{id:'tk',type:'password',autocomplete:'off',value:cfg.token});
+  const save_=async e=>{
+    e.preventDefault();
+    const next={url:u.value.trim(),token:tk.value.trim()},prev=cfg;
+    if(!next.url&&!next.token){cfg=next;localStorage.removeItem(KEY+':cfg');setSync('');pull();return say(box,'ยกเลิกการเชื่อมแล้ว ใช้เก็บในเครื่องนี้อย่างเดียว','good')}
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(next.url))return say(box,'ลิงก์ต้องขึ้นต้น https://script.google.com/macros/s/ และลงท้าย /exec','err');
+    if(!next.token)return say(box,'กรุณาใส่รหัสลับ','err');
+    cfg=next;say(box,'กำลังทดสอบการเชื่อมต่อ…','good');
+    try{
+      const rows=(await api()).rows;
+      if(rows.length===0&&recs.length&&confirm('Google Sheet ยังว่างอยู่ ส่ง '+recs.length+' รายการในเครื่องนี้ขึ้นไปไหม?'))
+        for(const rec of recs)await api({action:'add',rec});
+      else recs=rows;
+      localStorage.setItem(KEY+':cfg',JSON.stringify(cfg));save();pull();
+      say(box,'เชื่อม Google Sheet สำเร็จ','good');
+    }catch(er){cfg=prev;say(box,'เชื่อมไม่สำเร็จ: '+er.message+' ตรวจลิงก์และรหัสลับอีกครั้ง','err')}
+  };
+  return[box,el('form',{novalidate:'',onsubmit:save_},
+    el('div',{class:'f'},el('label',{for:'u'},'ลิงก์ Web App (/exec)'),u),
+    el('div',{class:'f'},el('label',{for:'tk'},'รหัสลับ'),tk,el('div',{class:'hint'},'ต้องตรงกับค่า TOKEN ในสคริปต์ Google Sheet')),
+    el('button',{class:'btn',type:'submit'},'ทดสอบและบันทึก')),
+    el('p',{class:'hint'},'ค่านี้เก็บในเบราว์เซอร์เครื่องนี้ ต้องตั้งในแต่ละเครื่องที่ใช้ ปล่อยว่างทั้งสองช่องแล้วกดบันทึกเพื่อยกเลิกการเชื่อม')];
+}
+
+const VIEWS={add:viewAdd,health:viewHealth,history:viewHistory,settings:viewSettings};
+function render(){
+  const h=VIEWS[location.hash.slice(1)]?location.hash.slice(1):'add';
+  document.querySelectorAll('nav a').forEach(a=>a.getAttribute('href')==='#'+h?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));
+  document.getElementById('main').replaceChildren(...VIEWS[h]());
+}
+addEventListener('hashchange',render);render();pull();
+</script>
+</body>
+</html>
