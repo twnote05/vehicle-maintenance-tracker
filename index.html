@@ -3,58 +3,80 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#1f5c3a">
+<meta name="theme-color" content="#0a64c8">
 <title>ดูแลรถ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">
 <style>
-:root{--bg:#eef3ef;--card:#fff;--ink:#1d1b16;--sub:#55504a;--line:#bcc8bf;--brand:#1f5c3a;--brand-d:#174a2f;
---ok:#1f6b3a;--ok-bg:#e3f2e8;--soon:#7a4b00;--soon-bg:#fdf0cf;--bad:#9b1c1c;--bad-bg:#fbe4e1}
+:root{--bg:#f2f4f8;--card:#fff;--ink:#0f172a;--sub:#475569;--line:#cbd5e1;--brand:#0a64c8;--brand-d:#084e9e;
+--ok:#166534;--ok-bg:#dcfce7;--soon:#7c4a03;--soon-bg:#fef3c7;--bad:#991b1b;--bad-bg:#fee2e2}
 *{box-sizing:border-box}
 body{margin:0;padding:16px 16px 40px;background:var(--bg);color:var(--ink);font:18px/1.5 'Sarabun','Noto Sans Thai','Segoe UI',Tahoma,sans-serif}
 .wrap{max-width:560px;margin:0 auto}
+body{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+header .logo{flex:none;width:44px;height:44px;border-radius:12px;background:var(--brand);color:#fff;display:grid;place-items:center}
+header h1{margin:0;font-size:28px}
+header p{margin:0;color:var(--sub);font-size:16px}
+nav{position:fixed;inset:auto 0 0 0;z-index:5;display:flex;justify-content:center;background:#fff;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(15,23,42,.08);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+nav .in{display:flex;gap:4px;width:100%;max-width:560px}
+nav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px;padding:6px 4px;border-radius:12px;color:var(--sub);font-size:15px;font-weight:600;text-decoration:none}
+nav a:hover{background:#e2e8f0}
+nav a[aria-current=page]{background:#e6f0fc;color:var(--brand)}
+nav svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 h1{font-size:24px;margin:0 0 12px;line-height:1.25}
-nav{display:flex;gap:8px;margin-bottom:20px}
-nav{flex-wrap:wrap}nav a{flex:1 1 22%;text-align:center;padding:12px 6px;min-height:48px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font-weight:700;text-decoration:none}
-nav a[aria-current=page]{background:var(--brand);border-color:var(--brand);color:#fff}
 label{display:block;font-weight:700;margin:0 0 6px}
 .opt{font-weight:400;color:var(--sub)}
 .f{margin-bottom:18px}
 input,select{width:100%;min-height:52px;padding:10px 14px;font:inherit;color:inherit;background:var(--card);border:2px solid var(--line);border-radius:10px}
 input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid #1b6fd1;outline-offset:2px}
-::selection{background:#b5dcc2}
+::selection{background:#bfd4f5}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .chip{min-height:44px;padding:6px 14px;font:inherit;background:var(--card);border:2px solid var(--line);border-radius:22px;cursor:pointer;color:var(--ink)}
 .chip[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#fff}
 .btn{display:block;width:100%;min-height:58px;font:inherit;font-weight:700;font-size:20px;color:#fff;background:var(--brand);border:0;border-radius:12px;cursor:pointer;padding:14px}
 .btn:hover{background:var(--brand-d)}
 .btn.alt{background:var(--card);color:var(--ink);border:2px solid var(--line);font-size:18px;min-height:52px}
-.btn.alt:hover{background:#e1e8e3}
+.btn.alt:hover{background:#e2e8f0}
 .msg{padding:12px 14px;border-radius:10px;margin-bottom:16px;font-weight:700}
 .msg.err{background:var(--bad-bg);color:var(--bad)}.msg.good{background:var(--ok-bg);color:var(--ok)}
 .hint{color:var(--sub);font-size:16px;margin-top:4px}
-.car{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.car{background:var(--card);border:0;border-radius:20px;padding:16px;margin-bottom:16px;box-shadow:0 2px 10px rgba(15,23,42,.07)}
 .car h2{font-size:21px;margin:0 0 8px}
 .tag{display:inline-block;padding:4px 12px;border-radius:16px;font-weight:700;margin-bottom:8px}
 .ok{background:var(--ok-bg);color:var(--ok)}.soon{background:var(--soon-bg);color:var(--soon)}
-.overdue{background:var(--bad-bg);color:var(--bad)}.none{background:#e1e8e3;color:var(--sub)}
+.overdue{background:var(--bad-bg);color:var(--bad)}.none{background:#e2e8f0;color:var(--sub)}
 .meta{color:var(--sub);font-size:16px;margin:6px 0 0;font-variant-numeric:tabular-nums}
 .empty{padding:24px;text-align:center;color:var(--sub)}
 .rec{display:flex;gap:12px;align-items:center;justify-content:space-between;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
 .rec b{display:block}
 .del{min-height:44px;padding:6px 14px;font:inherit;color:var(--bad);background:var(--card);border:2px solid var(--bad);border-radius:10px;cursor:pointer}
-.hero{position:relative;border-radius:16px;overflow:hidden;margin-bottom:20px;background:var(--brand);color:#fff}
+.hero{position:relative;border-radius:20px;box-shadow:0 6px 20px rgba(15,23,42,.18);overflow:hidden;margin-bottom:20px;background:var(--brand);color:#fff}
 .hero img,.ph{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
 .ph{display:grid;place-items:center;font-size:56px;font-weight:700;background:var(--brand-d)}
 .hero .bar{position:absolute;inset:auto 0 0 0;padding:28px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.72))}
 .hero select{background:rgba(255,255,255,.95);font-weight:700}
 .thumb{width:84px;height:56px;object-fit:cover;border-radius:8px;flex:none}
 .car img.cover{display:block;width:calc(100% + 32px);margin:-16px -16px 12px;aspect-ratio:16/9;object-fit:cover;border-radius:12px 12px 0 0}
-.st{background:var(--card);border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.st{background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
 .st .top{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
 .st b{font-size:19px}
 .st .tag{margin:0;padding:2px 10px;font-size:16px}
-.track{height:14px;background:#e1e8e3;border-radius:7px;overflow:hidden;margin:8px 0 6px}
+.track{height:16px;background:#e2e8f0;border-radius:7px;overflow:hidden;margin:8px 0 6px}
 .fill{height:100%;border-radius:7px}
 .fill.ok{background:var(--ok)}.fill.soon{background:#c47f00}.fill.overdue{background:var(--bad)}
+.card2{background:var(--card);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 2px 10px rgba(15,23,42,.07)}
+.big{font-size:44px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.big small{font-size:18px;font-weight:600;color:var(--sub);margin-left:6px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.tiles .card2{margin:0}.tiles b{display:block;font-size:36px;line-height:1.2}
+.tiles .t-bad b{color:var(--bad)}.tiles .t-soon b{color:var(--soon)}
+.donutwrap{display:flex;align-items:center;gap:20px}
+.donut{flex:none;width:112px;height:112px;border-radius:50%;-webkit-mask:radial-gradient(circle 36px,transparent 97%,#000 100%);mask:radial-gradient(circle 36px,transparent 97%,#000 100%)}
+.legend{flex:1;list-style:none;margin:0;padding:0}
+.legend li{display:flex;align-items:center;gap:8px;padding:3px 0}
+.legend i{width:12px;height:12px;border-radius:50%;flex:none}
+.legend b{margin-left:auto;font-variant-numeric:tabular-nums}
 .row2{display:grid;gap:10px;margin-top:20px}
 @media(min-width:700px){body{padding:32px}.row2{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:no-preference){.btn,.chip{transition:background .15s}}
@@ -62,15 +84,13 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 </head>
 <body>
 <div class="wrap">
-  <h1>ดูแลรถ</h1>
-  <nav aria-label="เมนู">
-    <a href="#add">บันทึก</a><a href="#status">สถานะ</a><a href="#history">ประวัติ</a><a href="#cars">โปรไฟล์รถ</a>
-  </nav>
+  <header><div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg></div><div><h1>ดูแลรถ</h1><p>จดงาน ดูสถานะ รู้ก่อนถึงกำหนด</p></div></header>
   <div id="hero"></div>
   <p class="hint"><a href="#settings">เชื่อม Google Sheet</a></p>
   <p id="sync" class="hint" role="status"></p>
   <main id="main"></main>
 </div>
+<nav aria-label="เมนู"><div class="in"><a href="#add"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg><span>บันทึก</span></a><a href="#status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg><span>สถานะ</span></a><a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg><span>ประวัติ</span></a><a href="#cars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg><span>โปรไฟล์</span></a></div></nav>
 <script>
 const KEY='smart-old-car:v1', SOON=0.8;
 // km = ระยะทางต่อรอบ (ไม่ใส่ = นับเวลาอย่างเดียว), mo = เดือนต่อรอบ, main = แสดงเสมอ
@@ -181,21 +201,34 @@ function viewAdd(){
   return[box,f];
 }
 
+const COLORS={overdue:'#dc2626',soon:'#d97706',ok:'#16a34a'};
+function dash(c,all){
+  const rs=recs.filter(r=>r.vehicle===c.name),km=Math.max(0,...rs.map(r=>+r.km||0));
+  const n={overdue:0,soon:0,ok:0};all.forEach(x=>n[x.status]!==undefined&&n[x.status]++);
+  const tot=n.overdue+n.soon+n.ok;let a=0;
+  const stops=tot?['overdue','soon','ok'].map(k=>{const f=a,t=a+n[k]/tot*100;a=t;return COLORS[k]+' '+f+'% '+t+'%'}).join(','):'#e2e8f0 0 100%';
+  const NM={overdue:'เกินกำหนด',soon:'ใกล้ถึงกำหนด',ok:'ปกติ'};
+  return el('div',{},
+    el('div',{class:'card2'},el('div',{class:'meta'},c.name+(c.model?' · '+c.model:'')),el('div',{class:'big'},km?th(km):'-',el('small',{},'กม.')),el('div',{class:'meta'},km?'เลขไมล์ล่าสุดจากบันทึก':'ยังไม่มีเลขไมล์ ใส่ตอนบันทึกงาน')),
+    el('div',{class:'tiles'},el('div',{class:'card2 t-bad'},'เกินกำหนด',el('b',{},n.overdue)),el('div',{class:'card2 t-soon'},'ใกล้ถึงกำหนด',el('b',{},n.soon))),
+    el('div',{class:'card2 donutwrap'},el('div',{class:'donut',role:'img','aria-label':tot?'เกินกำหนด '+n.overdue+' ใกล้ถึง '+n.soon+' ปกติ '+n.ok:'ยังไม่มีข้อมูล',style:'background:conic-gradient('+stops+')'}),
+      el('ul',{class:'legend'},['overdue','soon','ok'].map(k=>el('li',{},el('i',{style:'background:'+COLORS[k]}),NM[k],el('b',{},n[k]))))));
+}
 function viewStatus(){
   const L={ok:'ปกติ',soon:'ใกล้ถึงกำหนด',overdue:'เกินกำหนด',none:'ยังไม่มีข้อมูล'},ORD=['overdue','soon','ok','none'];
   const targets=cars.length?[activeCar()]:[...new Set(recs.map(r=>r.vehicle))].map(n=>({name:n}));
   if(!targets.length)return[el('div',{class:'empty'},'ยังไม่มีข้อมูล เริ่มจากเมนู "บันทึก" หรือเพิ่มรถที่ "โปรไฟล์รถ"')];
-  return[...targets.map(c=>{
+  return[...targets.flatMap(c=>{
     const all=statusOf(c.name,c.taxDue),rows=all.filter(x=>x.R.main||x.status!=='none');
     const bad=all.filter(x=>x.status==='overdue'||x.status==='soon').length;
-    return el('section',{class:'car'},
+    return[dash(c,all),el('section',{class:'car'},
       el('h2',{},c.name+(c.plate?' · '+c.plate:'')),
       el('span',{class:'tag '+(bad?'soon':'ok')},bad?'ต้องจัดการ '+bad+' เรื่อง':'ทุกอย่างปกติ'),
       ...rows.sort((a,b)=>ORD.indexOf(a.status)-ORD.indexOf(b.status)).map(x=>el('div',{class:'st'},
         el('div',{class:'top'},el('b',{},x.R.label),el('span',{class:'tag '+x.status},L[x.status])),
         el('div',{class:'track',role:'img','aria-label':x.status==='none'?'ไม่มีข้อมูล':'ใช้ไปแล้ว '+Math.round(x.ratio*100)+'% ของรอบ'},
           x.status==='none'?null:el('div',{class:'fill '+x.status,style:'width:'+Math.max(4,x.ratio*100)+'%'})),
-        el('div',{class:'meta'},x.text))));
+        el('div',{class:'meta'},x.text))))];
   }),el('p',{class:'hint'},'แถบ = สัดส่วนของรอบที่ใช้ไปแล้ว (น้ำมันเครื่องทุก 5,000 กม. หรือ 6 เดือน, ล้างรถทุกเดือน) รายการอื่นๆ จะโผล่เมื่อบันทึกงานนั้น')];
 }
 
