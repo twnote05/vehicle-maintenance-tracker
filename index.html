@@ -50,14 +50,15 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .overdue{background:var(--bad-bg);color:var(--bad)}.none{background:#e2e8f0;color:var(--sub)}
 .meta{color:var(--sub);font-size:16px;margin:6px 0 0;font-variant-numeric:tabular-nums}
 .empty{padding:24px;text-align:center;color:var(--sub)}
+.rec{flex-wrap:wrap}.rec>div{min-width:0;overflow-wrap:anywhere}
 .rec{display:flex;gap:12px;align-items:center;justify-content:space-between;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
 .rec b{display:block}
 .del{min-height:44px;padding:6px 14px;font:inherit;color:var(--bad);background:var(--card);border:2px solid var(--bad);border-radius:10px;cursor:pointer}
 .hero{position:relative;border-radius:20px;box-shadow:0 6px 20px rgba(15,23,42,.18);overflow:hidden;margin-bottom:20px;background:var(--brand);color:#fff}
-.hero img,.ph{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
-.ph{display:grid;place-items:center;font-size:56px;font-weight:700;background:var(--brand-d)}
+.hero img,.ph{display:block;width:100%;aspect-ratio:16/9;max-height:240px;object-fit:cover}
+.ph{display:grid;place-items:center;font-size:56px;aspect-ratio:21/9;font-weight:700;background:var(--brand-d)}
 .hero .bar{position:absolute;inset:auto 0 0 0;padding:28px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.72))}
-.hero select{background:rgba(255,255,255,.95);font-weight:700}
+.hero select{background:#fff;color:var(--ink);font-weight:700}
 .thumb{width:84px;height:56px;object-fit:cover;border-radius:8px;flex:none}
 .car img.cover{display:block;width:calc(100% + 32px);margin:-16px -16px 12px;aspect-ratio:16/9;object-fit:cover;border-radius:12px 12px 0 0}
 .st{background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
@@ -80,6 +81,7 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .legend i{width:12px;height:12px;border-radius:50%;flex:none}
 .legend b{margin-left:auto;font-variant-numeric:tabular-nums}
 .row2{display:grid;gap:10px;margin-top:20px}
+@media(max-width:359px){body{padding-left:12px;padding-right:12px}nav{padding-left:2px;padding-right:2px}nav .in{gap:0}nav a{font-size:12.5px;padding:6px 1px}h1{font-size:24px}header h1{font-size:24px}.big{font-size:36px}}
 @media(min-width:700px){body{padding:32px}.row2{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:no-preference){.btn,.chip{transition:background .15s}}
 </style>
