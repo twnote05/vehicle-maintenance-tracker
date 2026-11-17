@@ -17,3 +17,11 @@
 ### Next steps
 - ทดสอบ end-to-end กับ Sheet จริง (เพิ่ม/ลบ/ซิงค์)
 - พิจารณา offline queue ถ้าสัญญาณมือถือไม่เสถียร, เตือนรายการอื่นนอกจากน้ำมันเครื่อง
+
+### 2026-11-17 (2) — Deploy API เข้าโปรเจค Apps Script เดิม
+- เพิ่ม `Api.js` (จาก `apps-script/Code.gs`, ชีต `Car_Log`, TOKEN สุ่มใหม่ — ไม่เก็บใน repo) ในโปรเจคเดิม; แก้ `doGet` ใน `รหัส.js` ให้ถ้ามี `?token=` ส่งไป `apiGet` ไม่งั้นแสดงหน้า CRV G3 เดิม
+- Deploy ใหม่ @28 (ไม่แตะ deployment @27 ที่ใช้งานอยู่); ทดสอบ list / add / del / token ผิด ผ่านด้วย curl+node
+- ยังไม่ได้ทดสอบจากหน้าเว็บ GitHub Pages จริง
+
+### Next steps
+- ใส่ลิงก์ /exec + รหัสลับในเมนู ตั้งค่า แล้วลองบันทึกจริง
