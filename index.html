@@ -13,7 +13,7 @@ body{margin:0;padding:16px 16px 40px;background:var(--bg);color:var(--ink);font:
 .wrap{max-width:560px;margin:0 auto}
 h1{font-size:24px;margin:0 0 12px;line-height:1.25}
 nav{display:flex;gap:8px;margin-bottom:20px}
-nav a{flex:1;text-align:center;padding:12px 6px;min-height:48px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font-weight:700;text-decoration:none}
+nav{flex-wrap:wrap}nav a{flex:1 1 22%;text-align:center;padding:12px 6px;min-height:48px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font-weight:700;text-decoration:none}
 nav a[aria-current=page]{background:var(--brand);border-color:var(--brand);color:#fff}
 label{display:block;font-weight:700;margin:0 0 6px}
 .opt{font-weight:400;color:var(--sub)}
@@ -41,6 +41,13 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .rec{display:flex;gap:12px;align-items:center;justify-content:space-between;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
 .rec b{display:block}
 .del{min-height:44px;padding:6px 14px;font:inherit;color:var(--bad);background:var(--card);border:2px solid var(--bad);border-radius:10px;cursor:pointer}
+.hero{position:relative;border-radius:16px;overflow:hidden;margin-bottom:20px;background:var(--brand);color:#fff}
+.hero img,.ph{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.ph{display:grid;place-items:center;font-size:56px;font-weight:700;background:var(--brand-d)}
+.hero .bar{position:absolute;inset:auto 0 0 0;padding:28px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.72))}
+.hero select{background:rgba(255,255,255,.95);font-weight:700}
+.thumb{width:84px;height:56px;object-fit:cover;border-radius:8px;flex:none}
+.car img.cover{display:block;width:calc(100% + 32px);margin:-16px -16px 12px;aspect-ratio:16/9;object-fit:cover;border-radius:12px 12px 0 0}
 .row2{display:grid;gap:10px;margin-top:20px}
 @media(min-width:700px){body{padding:32px}.row2{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:no-preference){.btn,.chip{transition:background .15s}}
@@ -50,14 +57,26 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 <div class="wrap">
   <h1>ดูแลรถ</h1>
   <nav aria-label="เมนู">
-    <a href="#add">บันทึกงาน</a><a href="#health">สุขภาพรถ</a><a href="#history">ประวัติ</a><a href="#settings">ตั้งค่า</a>
+    <a href="#add">บันทึกงาน</a><a href="#health">สุขภาพรถ</a><a href="#history">ประวัติ</a><a href="#cars">รถของฉัน</a><a href="#settings">ตั้งค่า</a>
   </nav>
+  <div id="hero"></div>
   <p id="sync" class="hint" role="status"></p>
   <main id="main"></main>
 </div>
 <script>
 const KEY='smart-old-car:v1', OIL_KM=5000, OIL_MONTHS=6, SOON=0.8, OIL_RE=/น้ำมันเครื่อง|oil/i;
 const TYPES=['เปลี่ยนน้ำมันเครื่อง','เปลี่ยนยาง','เปลี่ยนแบตเตอรี่','เปลี่ยนผ้าเบรก','ตรวจเช็คระยะ','อื่นๆ'];
+// ---- โปรไฟล์รถ (เก็บในเครื่องนี้ รวมรูป) ----
+let cars=[],active='';
+try{cars=JSON.parse(localStorage.getItem(KEY+':cars'))||[];active=localStorage.getItem(KEY+':active')||''}catch(e){}
+const saveCars=()=>{try{localStorage.setItem(KEY+':cars',JSON.stringify(cars));localStorage.setItem(KEY+':active',active);return true}catch(e){return false}};
+const carByName=n=>cars.find(c=>c.name===n);
+const activeCar=()=>cars.find(c=>c.id===active)||cars[0];
+function shrink(file,max=800){return new Promise((ok,no)=>{
+  const img=new Image(),u=URL.createObjectURL(file);
+  img.onload=()=>{const s=Math.min(1,max/img.width),c=document.createElement('canvas');
+    c.width=img.width*s;c.height=img.height*s;c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',.8))};
+  img.onerror=()=>no(new Error('เปิดรูปนี้ไม่ได้'));img.src=u})}
 const th=n=>Number(n).toLocaleString('th-TH');
 const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 let recs=[];
@@ -116,8 +135,8 @@ function health(){
 
 function viewAdd(){
   const box=msgBox();
-  const cars=[...new Set(recs.map(r=>r.vehicle))];
-  const last=recs.length?recs[recs.length-1].vehicle:'';
+  const names=[...new Set([...cars.map(c=>c.name),...recs.map(r=>r.vehicle)])];
+  const last=activeCar()?activeCar().name:recs.length?recs[recs.length-1].vehicle:'';
   const v=el('input',{id:'v',list:'cars',autocomplete:'off',placeholder:'เช่น Honda CR-V',value:last});
   const t=el('input',{id:'t',autocomplete:'off',placeholder:'พิมพ์ หรือกดเลือกด้านล่าง'});
   const k=el('input',{id:'k',type:'number',inputmode:'numeric',min:'0',placeholder:'เช่น 85000'});
@@ -142,7 +161,7 @@ function viewAdd(){
     }catch(er){say(box,'บันทึกไม่สำเร็จ: '+er.message+' ลองกดบันทึกอีกครั้ง','err')}
     go.disabled=false;go.textContent='บันทึก';
   }},
-    el('div',{class:'f'},el('label',{for:'v'},'รถคันไหน'),v,el('datalist',{id:'cars'},cars.map(x=>el('option',{value:x})))),
+    el('div',{class:'f'},el('label',{for:'v'},'รถคันไหน'),v,el('datalist',{id:'cars'},names.map(x=>el('option',{value:x})))),
     el('div',{class:'f'},el('label',{for:'t'},'ทำอะไรไป'),t,el('div',{class:'chips'},chips)),
     el('div',{class:'f'},el('label',{for:'d'},'วันที่'),d),
     el('div',{class:'f'},el('label',{for:'k'},'เลขไมล์ตอนนี้ ',el('span',{class:'opt'},'(ไม่บังคับ)')),k,el('div',{class:'hint'},'หน่วย กม. ช่วยให้เตือนรอบเปลี่ยนน้ำมันได้แม่นขึ้น')),
@@ -154,8 +173,9 @@ function viewAdd(){
 function viewHealth(){
   const L={ok:'ปกติ',soon:'ใกล้ถึงกำหนด',overdue:'เกินกำหนด',none:'ยังไม่มีข้อมูล'},hs=health();
   if(!hs.length)return[el('div',{class:'empty'},'ยังไม่มีบันทึก กดเมนู "บันทึกงาน" เพื่อเริ่มต้น')];
+  hs.sort((a,b)=>(b.vehicle===(activeCar()||{}).name)-(a.vehicle===(activeCar()||{}).name));
   return[...hs.map(c=>el('section',{class:'car'},
-    el('h2',{},c.vehicle),el('span',{class:'tag '+c.status},L[c.status]),el('div',{},c.msg),
+    (carByName(c.vehicle)||{}).photo?el('img',{class:'cover',src:carByName(c.vehicle).photo,alt:''}):null,el('h2',{},c.vehicle),el('span',{class:'tag '+c.status},L[c.status]),el('div',{},c.msg),
     el('p',{class:'meta'},`${c.count} รายการ · ใช้ไปแล้ว ${th(c.spent)} บาท`+(c.km?` · ไมล์ล่าสุด ${th(c.km)} กม.`:'')))),
     el('p',{class:'hint'},`เปลี่ยนน้ำมันเครื่องทุก ${th(OIL_KM)} กม. หรือ ${OIL_MONTHS} เดือน แล้วแต่อย่างไหนถึงก่อน`)];
 }
@@ -214,11 +234,50 @@ function viewSettings(){
     el('p',{class:'hint'},'ค่านี้เก็บในเบราว์เซอร์เครื่องนี้ ต้องตั้งในแต่ละเครื่องที่ใช้ ปล่อยว่างทั้งสองช่องแล้วกดบันทึกเพื่อยกเลิกการเชื่อม')];
 }
 
-const VIEWS={add:viewAdd,health:viewHealth,history:viewHistory,settings:viewSettings};
+function viewCars(){
+  const box=msgBox();let photo='',editId='';
+  const n=el('input',{id:'n',autocomplete:'off',placeholder:'เช่น CR-V คันสีขาว'});
+  const m=el('input',{id:'m',autocomplete:'off',placeholder:'เช่น Honda CR-V 2009'});
+  const pv=el('img',{class:'thumb',alt:'',hidden:''});
+  const pic=el('input',{id:'p',type:'file',accept:'image/*',onchange:async e=>{
+    try{photo=await shrink(e.target.files[0]);pv.src=photo;pv.hidden=false}catch(er){say(box,er.message,'err')}}});
+  const go=el('button',{class:'btn',type:'submit'},'เพิ่มรถ');
+  const f=el('form',{novalidate:'',onsubmit:e=>{
+    e.preventDefault();const name=n.value.trim();
+    if(!name)return say(box,'กรุณาใส่ชื่อรถ','err'),n.focus();
+    if(cars.some(c=>c.name===name&&c.id!==editId))return say(box,'มีรถชื่อนี้อยู่แล้ว','err');
+    const old=cars.slice(),oa=active;
+    if(editId){const c=cars.find(x=>x.id===editId);c.name=name;c.model=m.value.trim();if(photo)c.photo=photo}
+    else{const c={id:'c'+Date.now(),name,model:m.value.trim(),photo};cars.push(c);active=c.id}
+    if(!saveCars()){cars=old;active=oa;return say(box,'บันทึกไม่ได้: พื้นที่เก็บข้อมูลเต็มหรือใช้ไม่ได้ ลองใช้รูปที่เล็กลง','err')}
+    render();
+  }},
+    el('div',{class:'f'},el('label',{for:'n'},'ชื่อรถ'),n,el('div',{class:'hint'},'ชื่อนี้ใช้จับคู่กับรายการบันทึกงาน')),
+    el('div',{class:'f'},el('label',{for:'m'},'รุ่น/ปี ',el('span',{class:'opt'},'(ไม่บังคับ)')),m),
+    el('div',{class:'f'},el('label',{for:'p'},'รูปรถ ',el('span',{class:'opt'},'(ไม่บังคับ)')),pic,pv,el('div',{class:'hint'},'รูปเก็บในเครื่องนี้เท่านั้น และย่อให้อัตโนมัติ')),
+    go);
+  const list=cars.map(c=>el('div',{class:'rec'},
+    c.photo?el('img',{class:'thumb',src:c.photo,alt:''}):el('div',{class:'thumb ph','aria-hidden':'true',style:'font-size:24px'},c.name.slice(0,1)),
+    el('div',{style:'flex:1'},el('b',{},c.name),el('span',{class:'meta'},c.model||'')),
+    el('button',{class:'chip',type:'button',onclick:()=>{editId=c.id;n.value=c.name;m.value=c.model||'';photo='';pv.src=c.photo||'';pv.hidden=!c.photo;go.textContent='บันทึกการแก้ไข';n.focus()}},'แก้ไข'),
+    el('button',{class:'del','aria-label':'ลบรถ '+c.name,onclick:()=>{
+      if(!confirm('ลบโปรไฟล์ "'+c.name+'"? ประวัติการซ่อมของรถคันนี้ยังอยู่'))return;
+      cars=cars.filter(x=>x.id!==c.id);saveCars();render()}},'ลบ')));
+  return[box,...(list.length?list:[el('div',{class:'empty'},'ยังไม่มีโปรไฟล์รถ เพิ่มคันแรกด้านล่าง')]),el('h2',{style:'font-size:21px;margin:24px 0 12px'},'เพิ่ม / แก้ไขรถ'),f];
+}
+
+const VIEWS={cars:viewCars,add:viewAdd,health:viewHealth,history:viewHistory,settings:viewSettings};
+function hero(){
+  const h=document.getElementById('hero'),c=activeCar();
+  if(!c)return h.replaceChildren();
+  const sel=el('select',{'aria-label':'เลือกรถ',onchange:e=>{active=e.target.value;saveCars();render()}},
+    cars.map(x=>el('option',{value:x.id,...(x.id===c.id?{selected:''}:{})},x.name+(x.model?' · '+x.model:''))));
+  h.replaceChildren(el('div',{class:'hero'},c.photo?el('img',{src:c.photo,alt:c.name}):el('div',{class:'ph','aria-hidden':'true'},c.name.slice(0,1)),el('div',{class:'bar'},sel)));
+}
 function render(){
   const h=VIEWS[location.hash.slice(1)]?location.hash.slice(1):'add';
   document.querySelectorAll('nav a').forEach(a=>a.getAttribute('href')==='#'+h?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));
-  document.getElementById('main').replaceChildren(...VIEWS[h]());
+  hero();document.getElementById('main').replaceChildren(...VIEWS[h]());
 }
 addEventListener('hashchange',render);render();pull();
 </script>
