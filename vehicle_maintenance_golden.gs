@@ -1,693 +1,195 @@
 /**
- * Vehicle Maintenance Tracking System - OPTIMIZED for Older Drivers
- * Features simplified UI, practical functions, and easy monitoring
- * Multi-device responsive design included
+ * Smart Old Car - บันทึกการดูแลรถ (ฉบับผู้ใช้สูงวัย)
+ * ใช้ได้ทั้งเมนูใน Google Sheets และ Web App (มือถือ/แท็บเล็ต/คอม)
  */
 
-/* ============================================================
-// CONFIGURATION
-// ============================================================*/
-const SS = SpreadsheetApp.getActiveSpreadsheet();
+/* ===== CONFIG ===== */
 const MAINTENANCE_SHEET = 'Maintenance_Log';
 const VEHICLE_INFO_SHEET = 'VehicleInfo';
+const LOG_HEADER = ['วันที่', 'รถ', 'งานที่ทำ', 'เลขไมล์ (กม.)', 'ค่าใช้จ่าย (บาท)', 'หมายเหตุ', 'บันทึกเมื่อ'];
 
-// Maintenance interval constants (in months or miles)
-const INTERVAL_MILEAGE = 5000;      // Check oil every 5,000 miles
-const INTERVAL_MONTHS = 6;          // Full service every 6 months
-const OIL_CHANGE_COST = 3000;       // Typical oil change in THB
-const MAJOR_SERVICE_COST = 8000;    // Typical major service in THB
+const OIL_KM = 5000;        // เปลี่ยนน้ำมันเครื่องทุกกี่ กม.
+const OIL_MONTHS = 6;       // หรือทุกกี่เดือน (แล้วแต่อย่างไหนถึงก่อน)
+const SOON_RATIO = 0.8;     // เกิน 80% ของรอบ = "ใกล้ถึงกำหนด"
+const SERVICE_TYPES = ['เปลี่ยนน้ำมันเครื่อง', 'เปลี่ยนยาง', 'เปลี่ยนแบตเตอรี่', 'เปลี่ยนผ้าเบรก', 'ตรวจเช็คระยะ', 'อื่นๆ'];
+const OIL_RE = /น้ำมันเครื่อง|oil/i;
 
-// Column indices for Maintenance_Log sheet (1-indexed)
-const COL_DATE = 1;
-const COL_VEHICLE = 2;
-const COL_SERVICE_TYPE = 3;
-const COL_MILEAGE = 4;
-const COL_COST = 5;
-const COL_NOTES = 6;
-const COL_CREATED = 7;
+const ss_ = () => SpreadsheetApp.getActiveSpreadsheet();
 
-/* ============================================================
-// onOpen - Add simplified custom menu when spreadsheet opens
-// ============================================================*/
+/* ===== MENU ===== */
 function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('🚗 Vehicle Tracker')
-    .addItem('➕ Add Quick Record', 'showQuickAddDialog')
-    .addItem('📊 Dashboard', 'showDashboard')
+  SpreadsheetApp.getUi().createMenu('🚗 ดูแลรถ')
+    .addItem('➕ บันทึกงานซ่อม/บำรุง', 'showQuickAddDialog')
+    .addItem('📊 สุขภาพรถ', 'showDashboard')
     .addToUi();
 }
 
-/* ============================================================
-// showQuickAddDialog - Simplified add record for older drivers
-// Responsive: adapts to screen size via CSS
-// ============================================================*/
 function showQuickAddDialog() {
-  const html = HtmlService.createHtmlOutput(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-      <style>
-        /* Responsive container */
-        .responsive-container { max-width: 100%; width: 100%; }
-        
-        /* Base styles - mobile first */
-        body { 
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-          margin: 0; padding: 0; 
-          background: #fafafa; 
-        }
-        .dialog-content { 
-          background: white; 
-          border-radius: 8px; 
-          padding: 20px; 
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        h3 { 
-          color: #2c3e50; 
-          margin: 0 0 15px 0; 
-          padding-bottom: 8px; 
-          border-bottom: 1px solid #eee; 
-          font-size: 16px; 
-        }
-        
-        label { 
-          display: block; 
-          font-weight: bold; 
-          color: #555; 
-          font-size: 13px; 
-          margin-bottom: 5px; 
-        }
-        
-        input, select { 
-          width: 100%; 
-          padding: 10px; 
-          border: 1px solid #ddd; 
-          border-radius: 4px; 
-          font-size: 14px; 
-          box-sizing: border-box; /* Ensures padding doesn't affect width */
-        }
-        
-        input[type="number"] { 
-          padding: 8px; 
-        }
-        
-        button { 
-          width: 100%; 
-          background-color: #27ae60; 
-          color: white; 
-          padding: 12px; 
-          border: none; 
-          border-radius: 4px; 
-          cursor: pointer; 
-          font-size: 14px; 
-          margin-top: 10px; 
-        }
-        
-        .error { 
-          color: #e74c3c; 
-          font-size: 12px; 
-          margin-bottom: 10px; 
-          background: #fdf2f2; 
-          padding: 8px; 
-          border-radius: 4px; 
-          display: none; 
-        }
-        
-        .hint { 
-          font-size: 11px; 
-          color: #666; 
-          margin-top: 5px; 
-        }
-        
-        /* Reduce font size on very small screens */
-        @media (max-width: 320px) {
-          label { font-size: 12px; }
-          input, select { font-size: 13px; padding: 8px; }
-          button { font-size: 13px; padding: 10px; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="responsive-container dialog-content">
-        <h3>Add Maintenance Record</h3>
-        
-        <!-- Vehicle selection -->
-        <div style="margin-bottom: 15px;">
-          <label>Vehicle</label>
-          <select id="vehicleSelect" style="padding: 8px; font-size: 13px;">
-            <option value="">Select vehicle...</option>
-            ${getVehicleOptions()}
-          </select>
-        </div>
-        
-        <!-- Service Type -->
-        <div style="margin-bottom: 15px;">
-          <label>Service Type</label>
-          <input type="text" id="serviceType" placeholder="e.g., Oil Change">
-        </div>
-        
-        <!-- Mileage -->
-        <div style="margin-bottom: 15px;">
-          <label>Mileage</label>
-          <input type="number" id="mileage" min="0" step="1000">
-        </div>
-        
-        <!-- Cost -->
-        <div style="margin-bottom: 20px;">
-          <label>Cost (THB)</label>
-          <input type="number" id="cost" min="0" step="100">
-          <div class="hint">Typical: Oil Change ~${OIL_CHANGE_COST}, Major Service ~${MAJOR_SERVICE_COST} THB</div>
-        </div>
-        
-        <!-- Error message -->
-        <div id="errorMsg" class="error" style="display: none;"></div>
-        
-        <div style="text-align: right; margin-top: 20px;">
-          <button onclick="submitQuickRecord()">Add Record</button>
-        </div>
-      </div>
-    </body>
-    </html>
-  `);
-  html.setWidth(400);
-  html.setHeight(350);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Add Record');
+  SpreadsheetApp.getUi().showModalDialog(
+    HtmlService.createHtmlOutput(page_('form')).setWidth(460).setHeight(560), 'บันทึกงานซ่อม/บำรุง');
 }
 
-/* ============================================================
-// submitQuickRecord - Quick submission with minimal fields
-// ============================================================*/
-function submitQuickRecord() {
-  const vehicle = document.getElementById('vehicleSelect').value;
-  const serviceType = document.getElementById('serviceType').value;
-  const mileage = document.getElementById('mileage').value;
-  const cost = document.getElementById('cost').value;
-  
-  // Validation - only require service type and either vehicle or cost
-  if (!serviceType) {
-    showError('Please enter the service type');
-    return;
-  }
-  
-  const sheet = SS.getSheetByName(MAINTENANCE_SHEET);
-  if (!sheet) {
-    SpreadsheetApp.getUi().alert('Maintenance log sheet not found');
-    return;
-  }
-  
-  // Use current vehicle or last used - simplify: if no vehicle selected, mark as "Unknown"
-  const vehicleName = vehicle || 'Unknown';
-  
-  const now = new Date();
-  const formattedDate = Utilities.formatDate(now, Session.getScriptTimeZone(), 'MMM d, yyyy');
-  const row = [
-    formattedDate,
-    vehicleName,
-    serviceType,
-    parseInt(mileage) || 0,
-    parseInt(cost) || 0,
-    '',
-    now
-  ];
-  
-  sheet.appendRow(row);
-  SpreadsheetApp.getUi().alert('Record added successfully!');
-  
-  // Auto-close after short delay
-  setTimeout(() => { google.script.host.close(); }, 1000);
-}
-
-/* ============================================================
-// showError - Display error message in dialog
-// ============================================================*/
-function showError(message) {
-  const errorDiv = document.getElementById('errorMsg');
-  errorDiv.style.display = 'block';
-  errorDiv.innerText = message;
-}
-
-/* ============================================================
-// showDashboard - Simplified dashboard for vehicle health monitoring
-// Responsive: adapts layout based on screen width
-// ============================================================*/
 function showDashboard() {
-  const sheet = SS.getSheetByName(MAINTENANCE_SHEET);
-  const vehicleSheet = SS.getSheetByName(VEHICLE_INFO_SHEET);
-  
-  if (!sheet) {
-    SpreadsheetApp.getUi().alert('Maintenance log sheet not found');
-    return;
-  }
-  
-  const data = sheet.getDataRange().getValues();
-  const today = new Date();
-  const currentMonth = today.getMonth() + 1;
-  const currentYear = today.getFullYear();
-  
-  // Calculate statistics
-  let totalRecords = 0;
-  let totalCost = 0;
-  let vehiclesCount = new Set();
-  let lastServiceDate = null;
-  let lastServiceCost = 0;
-  let milesSinceLastService = 0;
-  let overdueItems = [];
-  
-  if (data.length > 1) {
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const recordDate = new Date(row[0]);
-      const serviceType = row[2] || '';
-      const cost = (row[4] || 0) * 1;
-      const mileage = row[3] || 0;
-      const vehicle = row[1] || 'Unknown';
-      
-      totalRecords++;
-      totalCost += cost;
-      vehiclesCount.add(vehicle);
-      
-      // Track last service
-      if (!lastServiceDate || recordDate > lastServiceDate) {
-        lastServiceDate = recordDate;
-        lastServiceCost = cost;
-      }
-      
-      // Track miles since last service
-      if (mileage > milesSinceLastService) {
-        milesSinceLastService = mileage;
-      }
-      
-      // Check for overdue items
-      if (serviceType.toLowerCase().includes('oil') || serviceType.toLowerCase().includes('service')) {
-        // Simple overdue check based on mileage interval
-        if (mileage > 0 && mileage % INTERVAL_MILEAGE !== 0) {
-          const lastOilMileage = Math.floor(mileage / INTERVAL_MILEAGE) * INTERVAL_MILEAGE;
-          overdueItems.push({
-            vehicle,
-            type: serviceType,
-            currentMileage: mileage,
-            lastOilMileage: lastOilMileage,
-            nextDue: lastOilMileage + INTERVAL_MILEAGE
-          });
-        }
-      }
-    }
-  }
-  
-  // Get vehicle info for summaries
-  let vehicleNames = [];
-  let vehicleDetails = '';
-  if (vehicleSheet) {
-    const vData = vehicleSheet.getDataRange().getValues();
-    if (vData.length > 1) {
-      for (let i = 1; i < vData.length; i++) {
-        if (vData[i][0]) {
-          vehicleNames.push(vData[i][0]);
-          // Build details string for first vehicle
-          if (i === 1 && vData[i].length > 3) {
-            vehicleDetails = `• ${vData[i][0]}: Model ${vData[i][1] || 'N/A'}, Year ${vData[i][2] || 'N/A'}`;
-          }
-        }
-      }
-    }
-  }
-  
-  // Calculate health score (0-100)
-  let healthScore = 100;
-  if (overdueItems.length > 0) healthScore -= 15 * overdueItems.length;
-  if (totalRecords === 0) healthScore = 0;
-  healthScore = Math.max(0, Math.min(100, healthScore));
-  
-  // Determine health color
-  let healthColor = '#27ae60';
-  if (healthScore < 40) healthColor = '#e74c3c';
-  else if (healthScore < 70) healthColor = '#f39c12';
-  
-  // Calculate responsive layout - determine if we're on mobile or desktop
-  const isMobile = window.innerWidth < 600;
-  
-  let html = `<!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-      <style>
-        /* Responsive container */
-        .responsive-container { max-width: 100%; width: 100%; }
-        
-        /* Base styles - mobile first */
-        body { 
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-          margin: 0; padding: 0; 
-          background: #fafafa; 
-          color: #333;
-        }
-        .dialog-content { 
-          background: white; 
-          border-radius: 8px; 
-          padding: 20px; 
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        h3 { 
-          color: #2c3e50; 
-          margin: 0 0 20px 0; 
-          padding-bottom: 10px; 
-          border-bottom: 1px solid #eee; 
-          font-size: 18px; 
-        }
-        
-        .stat-card { 
-          background: white; 
-          padding: 15px; 
-          border-radius: 8px; 
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-          text-align: center; 
-          margin-bottom: 15px;
-        }
-        
-        .stat-label { 
-          font-size: 12px; 
-          color: #888; 
-          margin-bottom: 5px; 
-          display: block;
-        }
-        
-        .stat-value { 
-          font-size: 20px; 
-          font-weight: bold; 
-          color: #2c3e50; 
-        }
-        
-        .row { 
-          margin: 10px 0; 
-        }
-        
-        .row:after { content: ""; display: table; clear: both; }
-        
-        .col { 
-          float: left; 
-          width: 50%; 
-          padding: 0 10px;
-        }
-        
-        @media (max-width: 500px) {
-          .col { width: 100%; }
-        }
-        
-        .alert-card { 
-          background: #faebc1; 
-          border: 1px solid #f39c12; 
-          padding: 15px; 
-          border-radius: 8px; 
-          margin: 20px 0;
-        }
-        
-        .alert-title { 
-          font-size: 13px; 
-          font-weight: bold; 
-          color: #e67e22; 
-          margin-bottom: 10px;
-        }
-        
-        .alert-item { 
-          font-size: 12px; 
-          margin: 8px 0; 
-          padding: 8px; 
-          background: #fff; 
-          border-radius: 4px;
-        }
-        
-        .vehicle-list { 
-          margin: 20px 0; 
-        }
-        
-        .vehicle-item { 
-          font-size: 12px; 
-          margin: 4px 0; 
-        }
-        
-        .tip-box { 
-          background: #e8f6ff; 
-          padding: 15px; 
-          border-radius: 8px; 
-          font-size: 12px; 
-          color: #555; 
-          margin: 20px 0;
-        }
-        
-        /* Reduce padding on very small screens */
-        @media (max-width: 400px) {
-          .dialog-content { padding: 15px; }
-          .stat-value { font-size: 16px; }
-          .alert-item { font-size: 11px; padding: 6px; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="responsive-container dialog-content">
-        <h3>📊 Vehicle Health Dashboard</h3>
-        
-        <!-- Health Score -->
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <span style="font-size: 14px; color: #555;">Vehicle Health Score</span>
-            <span style="color: ${healthColor}; font-weight: bold; font-size: ${isMobile ? '20px' : '24px'}">${healthScore}/100</span>
-          </div>
-          <div style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;">
-            <span style="font-size: 12px; color: #888;">Based on ${totalRecords} records across ${vehiclesCount.size} vehicle(s)</span>
-          </div>
-        </div>
-        
-        <!-- Summary Stats -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-          <div class="stat-card">
-            <div class="stat-label">Total Spent</div>
-            <div class="stat-value">${totalCost.toLocaleString()} THB</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Records</div>
-            <div class="stat-value">${totalRecords}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Vehicle(s)</div>
-            <div class="stat-value">${vehiclesCount.size}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Last Service</div>
-            <div class="stat-value">${lastServiceDate ? Utilities.formatDate(lastServiceDate, Session.getScriptTimeZone(), 'MMM d, yyyy') : 'No records'}</div>
-          </div>
-        </div>
-        
-        ${overdueItems.length > 0 ? `
-        <div class="alert-card">
-          <div class="alert-title">⚠️ Maintenance Alerts (${overdueItems.length})</div>
-          ${overdueItems.map(item => `
-            <div class="alert-item">
-              ${item.vehicle}: Next service due at ${item.nextDue.toLocaleString()} miles (currently at ${item.currentMileage.toLocaleString()})
-            </div>
-          `).join('')}
-        </div>
-        ` : ''}
-        
-        ${vehicleNames.length > 0 ? `
-        <div style="margin: 20px 0;">
-          <div style="font-size: 13px; color: #555; margin-bottom: 10px;">Your Vehicles</div>
-          ${vehicleNames.map(v => `<div style="font-size: 12px; margin: 4px 0;">• ${v}</div>`).join('')}
-          ${vehicleDetails ? `<div style="font-size: 11px; color: #888; margin-top: 5px;">${vehicleDetails}</div>` : ''}
-        </div>
-        ` : ''}
-        
-        <div class="tip-box">
-          <strong>Tip:</strong> Add records regularly to keep your vehicle's health score accurate. 
-          Consider oil changes every ${INTERVAL_MILEAGE} miles or every ${INTERVAL_MONTHS} months.
-        </div>
-      </div>
-    </body>
-    </html>`;
-  
-  const htmlOutput = HtmlService.createHtmlOutput(html);
-  htmlOutput.setWidth(isMobile ? 350 : 650);
-  htmlOutput.setHeight(isMobile ? 500 : 550);
-  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Vehicle Dashboard');
+  SpreadsheetApp.getUi().showModalDialog(
+    HtmlService.createHtmlOutput(page_('dash')).setWidth(560).setHeight(620), 'สุขภาพรถ');
 }
 
-/* ============================================================
-// Add helper functions from original code
-// ============================================================*/
-
-function getVehicleOptions() {
-  const vehicleSheet = SS.getSheetByName(VEHICLE_INFO_SHEET);
-  if (!vehicleSheet) return '<option value="">Vehicle sheet not found</option>';
-  
-  const data = vehicleSheet.getDataRange().getValues();
-  let options = '';
-  
-  if (data.length > 1) {
-    const vehicles = new Set();
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0]) {
-        vehicles.add(data[i][0]);
-      }
-    }
-    for (const v of vehicles) {
-      options += `<option value="${v}">${v}</option>`;
-    }
-  }
-  
-  return options;
-}
-
-function getVehicleOptionsForWeb() {
-  return getVehicleOptions(); // Same logic
-}
-
-function addRecordViaWeb(e) {
-  // Same as before but simplified
-  const vehicle = e.parameter.vehicle;
-  const serviceType = e.parameter.serviceType;
-  const mileage = e.parameter.mileage;
-  const cost = e.parameter.cost;
-  
-  if (!vehicle || !serviceType) {
-    return ContentService.createTextOutput(JSON.stringify({success: false, error: 'Missing required fields'}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  const sheet = SS.getSheetByName(MAINTENANCE_SHEET);
-  if (!sheet) {
-    return ContentService.createTextOutput(JSON.stringify({success: false, error: 'Maintenance sheet not found'}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  const now = new Date();
-  const row = [
-    Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd'),
-    vehicle,
-    serviceType,
-    parseInt(mileage) || 0,
-    parseInt(cost) || 0,
-    '',
-    now
-  ];
-  
-  sheet.appendRow(row);
-  return ContentService.createTextOutput(JSON.stringify({success: true}))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function openWebApp() {
-  const url = 'https://script.google.com/macros/s/AKfycbwhqM4DZKR3wPiym5DUn5nI3CV0_H7FMvQBPb5YhLeyBnCGUk7x8i4I0Scp8SfR9jXJ1A/exec';
-  const htmlService = HtmlService.createHtmlOutput(`<script>window.open('${url}', '_blank');</script>`);
-  SpreadsheetApp.getUi().showModalDialog(htmlService, 'Open Web App');
-}
-
+/* ===== WEB APP ===== */
 function doGet(e) {
-  const action = e.parameter.action || '';
-  
-  if (action === 'add') {
-    return addRecordViaWeb(e);
-  }
-  
-  return ContentService.createTextOutput(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Vehicle Maintenance - Quick Add</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
-        button { background: #27ae60; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 14px; }
-        .vehicle-select { width: 100%; }
-        .highlight { background: #e8f6ff; padding: 10px; border-radius: 4px; margin: 10px 0; }
-      </style>
-    </head>
-    <body>
-      <h2 style="color: #2c3e50; text-align: center;">Add Maintenance Record</h2>
-      <form id="maintenanceForm">
-        <div class="form-group">
-          <label>Vehicle</label>
-          <select class="vehicle-select" id="vehicleSelectWeb">
-            <option value="">-- Select Vehicle --</option>
-            ${getVehicleOptionsForWeb()}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Service Type</label>
-          <input type="text" id="serviceTypeWeb" required placeholder="e.g., Oil Change">
-        </div>
-        <div class="form-group">
-          <label>Mileage</label>
-          <input type="number" id="mileageWeb" min="0" step="1000">
-        </div>
-        <div class="form-group">
-          <label>Cost (THB)</label>
-          <input type="number" id="costWeb" min="0" step="100">
-        </div>
-        <button type="submit">Add Record</button>
-      </form>
-      <script>
-        document.getElementById('maintenanceForm').addEventListener('submit', function(e) {
-          e.preventDefault();
-          const formData = {
-            action: 'add',
-            vehicle: document.getElementById('vehicleSelectWeb').value,
-            serviceType: document.getElementById('serviceTypeWeb').value,
-            mileage: document.getElementById('mileageWeb').value,
-            cost: document.getElementById('costWeb').value
-          };
-          
-          fetch('https://script.google.com/macros/s/AKfycbwhqM4DZKR3wPiym5DUn5nI3CV0_H7FMvQBPb5YhLeyBnCGUk7x8i4I0Scp8SfR9jXJ1A/exec', {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify(formData)
-          }).then(response => {
-            alert('Record submitted successfully!');
-            window.close();
-          }).catch(error => {
-            alert('Error: ' + error.message);
-          });
-        });
-        
-        // Quick load vehicles
-        fetch('https://script.google.com/macros/s/AKfycbwhqM4DZKR3wPiym5DUn5nI3CV0_H7FMvQBPb5YhLeyBnCGUk7x8i4I0Scp8SfR9jXJ1A/exec?action=getVehicles')
-          .then(response => response.json())
-          .then(data => {
-            const select = document.getElementById('vehicleSelectWeb');
-            data.vehicles.forEach(vehicle => {
-              const option = document.createElement('option');
-              option.value = vehicle;
-              option.text = vehicle;
-              select.appendChild(option);
-            });
-          });
-      </script>
-    </body>
-    </html>
-  `).setMimeType(ContentService.MimeType.HTML);
+  const p = (e && e.parameter && e.parameter.page) === 'dash' ? 'dash' : 'form';
+  return HtmlService.createHtmlOutput(page_(p))
+    .setTitle('ดูแลรถ')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/* ===== SERVER API (เรียกจากหน้าเว็บด้วย google.script.run) ===== */
+function addRecord(r) {
+  const type = String(r.serviceType || '').trim();
+  if (!type) throw new Error('กรุณาเลือกงานที่ทำ');
+  const km = r.mileage === '' || r.mileage == null ? '' : Number(r.mileage);
+  const cost = r.cost === '' || r.cost == null ? '' : Number(r.cost);
+  if ((km !== '' && !(km >= 0)) || (cost !== '' && !(cost >= 0))) throw new Error('เลขไมล์และค่าใช้จ่ายต้องเป็นตัวเลข');
+  const now = new Date();
+  logSheet_().appendRow([now, r.vehicle || 'ไม่ระบุรถ', type, km, cost, String(r.notes || '').slice(0, 300), now]);
+  return true;
 }
 
 function getVehicles() {
-  const vehicleSheet = SS.getSheetByName(VEHICLE_INFO_SHEET);
-  if (!vehicleSheet) return {};
-  
-  const data = vehicleSheet.getDataRange().getValues();
-  const vehicles = [];
-  
-  if (data.length > 1) {
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0]) {
-        vehicles.push(data[i][0]);
-      }
+  const sh = ss_().getSheetByName(VEHICLE_INFO_SHEET);
+  if (!sh) return [];
+  const names = sh.getRange(1, 1, Math.max(sh.getLastRow(), 1), 1).getValues().slice(1)
+    .map(r => String(r[0]).trim()).filter(Boolean);
+  return [...new Set(names)];
+}
+
+/* ===== HEALTH LOGIC ===== */
+// คืนสถานะของรถแต่ละคัน: ok | soon | overdue | none
+function getHealth() {
+  const sh = logSheet_();
+  const rows = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 5).getValues() : [];
+  const tz = Session.getScriptTimeZone();
+  const byCar = {};
+  getVehicles().forEach(v => byCar[v] = { vehicle: v, km: 0, oil: null, spent: 0, count: 0 });
+  rows.forEach(([date, vehicle, type, km, cost]) => {
+    const name = String(vehicle || 'ไม่ระบุรถ');
+    const c = byCar[name] || (byCar[name] = { vehicle: name, km: 0, oil: null, spent: 0, count: 0 });
+    const d = new Date(date);
+    c.count++; c.spent += Number(cost) || 0;
+    c.km = Math.max(c.km, Number(km) || 0);
+    if (OIL_RE.test(type) && !isNaN(d) && (!c.oil || d > c.oil.date)) c.oil = { date: d, km: Number(km) || 0 };
+  });
+  const now = new Date();
+  return Object.values(byCar).map(c => {
+    let status = 'none', msg = 'ยังไม่เคยบันทึกการเปลี่ยนน้ำมันเครื่อง';
+    if (c.oil) {
+      const months = (now - c.oil.date) / (30.44 * 864e5);
+      const kmSince = c.oil.km && c.km ? c.km - c.oil.km : 0;
+      const ratio = Math.max(kmSince / OIL_KM, months / OIL_MONTHS);
+      status = ratio >= 1 ? 'overdue' : ratio >= SOON_RATIO ? 'soon' : 'ok';
+      const nextKm = c.oil.km ? ` หรือที่ ${(c.oil.km + OIL_KM).toLocaleString('th-TH')} กม.` : '';
+      const nextDate = Utilities.formatDate(new Date(c.oil.date.getTime() + OIL_MONTHS * 30.44 * 864e5), tz, 'd/M/yyyy');
+      msg = (status === 'overdue' ? 'เกินกำหนดเปลี่ยนน้ำมันเครื่อง' : 'เปลี่ยนน้ำมันเครื่องครั้งต่อไป') + ` ภายใน ${nextDate}${nextKm}`;
     }
-  }
-  
-  return { vehicles };
+    return { vehicle: c.vehicle, status, msg, spent: c.spent, count: c.count, km: c.km };
+  });
+}
+
+/* ===== HELPERS ===== */
+function logSheet_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(MAINTENANCE_SHEET);
+  if (!sh) { sh = ss.insertSheet(MAINTENANCE_SHEET); sh.appendRow(LOG_HEADER); sh.setFrozenRows(1); }
+  return sh;
+}
+
+const esc_ = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ===== UI ===== */
+const CSS_ = `
+:root{--bg:#f6f2ea;--card:#fff;--ink:#1d1b16;--sub:#55504a;--line:#cfc7b8;--brand:#1f5c3a;--brand-d:#174a2f;
+--ok:#1f6b3a;--ok-bg:#e3f2e8;--soon:#7a4b00;--soon-bg:#fdf0cf;--bad:#9b1c1c;--bad-bg:#fbe4e1}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font:18px/1.5 'Sarabun','Noto Sans Thai','Segoe UI',Tahoma,sans-serif}
+.wrap{max-width:560px;margin:0 auto}
+h1{font-size:24px;margin:0 0 16px;line-height:1.25}
+label{display:block;font-weight:700;margin:0 0 6px}
+.opt{font-weight:400;color:var(--sub)}
+.f{margin-bottom:18px}
+input,select,textarea{width:100%;min-height:52px;padding:10px 14px;font:inherit;color:inherit;background:var(--card);border:2px solid var(--line);border-radius:10px}
+input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{outline:3px solid #1b6fd1;outline-offset:2px}
+::selection{background:#bfe0c9}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{min-height:44px;padding:6px 14px;font:inherit;background:var(--card);border:2px solid var(--line);border-radius:22px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn{display:block;width:100%;min-height:58px;font:inherit;font-weight:700;font-size:20px;color:#fff;background:var(--brand);border:0;border-radius:12px;cursor:pointer;text-align:center;text-decoration:none;padding:14px}
+.btn:hover{background:var(--brand-d)}
+.btn:disabled{opacity:.6;cursor:wait}
+.msg{padding:12px 14px;border-radius:10px;margin-bottom:16px;font-weight:700}
+.msg.err{background:var(--bad-bg);color:var(--bad)}
+.msg.good{background:var(--ok-bg);color:var(--ok)}
+.hint{color:var(--sub);font-size:16px;margin-top:4px}
+.car{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.car h2{font-size:21px;margin:0 0 8px}
+.tag{display:inline-block;padding:4px 12px;border-radius:16px;font-weight:700;font-size:18px;margin-bottom:8px}
+.ok{background:var(--ok-bg);color:var(--ok)}.soon{background:var(--soon-bg);color:var(--soon)}
+.overdue{background:var(--bad-bg);color:var(--bad)}.none{background:#ece8df;color:var(--sub)}
+.meta{color:var(--sub);font-size:16px;margin:6px 0 0;font-variant-numeric:tabular-nums}
+.empty{padding:24px;text-align:center;color:var(--sub)}
+.nav{margin-top:18px}.nav a{color:var(--brand);font-weight:700}
+@media(min-width:700px){body{padding:32px}}
+@media(prefers-reduced-motion:no-preference){.btn{transition:background .15s}}
+`;
+
+function page_(which) {
+  const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${CSS_}</style>`;
+  return which === 'dash' ? `<!DOCTYPE html><html lang="th"><head>${head}</head><body><div class="wrap">${dashBody_()}</div></body></html>`
+                          : `<!DOCTYPE html><html lang="th"><head>${head}</head><body><div class="wrap">${formBody_()}</div></body></html>`;
+}
+
+function dashBody_() {
+  const L = { ok: 'ปกติ', soon: 'ใกล้ถึงกำหนด', overdue: 'เกินกำหนด', none: 'ยังไม่มีข้อมูล' };
+  const cars = getHealth().sort((a, b) => ['overdue', 'soon', 'none', 'ok'].indexOf(a.status) - ['overdue', 'soon', 'none', 'ok'].indexOf(b.status));
+  const body = cars.length ? cars.map(c => `
+    <section class="car">
+      <h2>${esc_(c.vehicle)}</h2>
+      <span class="tag ${c.status}">${L[c.status]}</span>
+      <div>${esc_(c.msg)}</div>
+      <p class="meta">${c.count} รายการ · ใช้ไปแล้ว ${c.spent.toLocaleString('th-TH')} บาท${c.km ? ' · ไมล์ล่าสุด ' + c.km.toLocaleString('th-TH') + ' กม.' : ''}</p>
+    </section>`).join('') : '<div class="empty">ยังไม่มีรถในระบบ เพิ่มชื่อรถในชีต VehicleInfo คอลัมน์ A</div>';
+  return `<h1>สุขภาพรถ</h1>${body}<p class="hint">เปลี่ยนน้ำมันเครื่องทุก ${OIL_KM.toLocaleString('th-TH')} กม. หรือ ${OIL_MONTHS} เดือน แล้วแต่อย่างไหนถึงก่อน</p>
+  <p class="nav"><a href="?">← บันทึกงานใหม่</a></p>`;
+}
+
+function formBody_() {
+  const cars = getVehicles();
+  const opts = (cars.length === 1 ? '' : '<option value="">เลือกรถ</option>') + cars.map(v => `<option>${esc_(v)}</option>`).join('');
+  const chips = SERVICE_TYPES.map(t => `<button type="button" class="chip" aria-pressed="false">${esc_(t)}</button>`).join('');
+  return `<h1>บันทึกงานซ่อม/บำรุง</h1>
+  <div id="msg" role="alert" hidden></div>
+  <form id="f" novalidate>
+    <div class="f"><label for="v">รถคันไหน</label><select id="v">${opts}</select></div>
+    <div class="f"><label for="t">ทำอะไรไป</label><input id="t" autocomplete="off" placeholder="พิมพ์ หรือกดเลือกด้านล่าง"><div class="chips">${chips}</div></div>
+    <div class="f"><label for="k">เลขไมล์ตอนนี้ <span class="opt">(ไม่บังคับ)</span></label><input id="k" type="number" inputmode="numeric" min="0" placeholder="เช่น 85000"><div class="hint">หน่วย กม. ช่วยให้เตือนรอบเปลี่ยนน้ำมันได้แม่นขึ้น</div></div>
+    <div class="f"><label for="c">ค่าใช้จ่าย <span class="opt">(บาท, ไม่บังคับ)</span></label><input id="c" type="number" inputmode="numeric" min="0" placeholder="เช่น 1800"></div>
+    <button class="btn" id="go" type="submit">บันทึก</button>
+  </form>
+  <p class="nav"><a href="?page=dash">ดูสุขภาพรถ →</a></p>
+  <script>
+  const $=i=>document.getElementById(i),msg=$('msg');
+  function say(t,k){msg.className='msg '+k;msg.textContent=t;msg.hidden=false}
+  document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x===b));
+    $('t').value=b.textContent});
+  $('t').oninput=()=>document.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x.textContent===$('t').value));
+  $('f').onsubmit=e=>{e.preventDefault();
+    if(!$('t').value.trim()){say('กรุณาเลือกหรือพิมพ์ว่าทำอะไรไป','err');$('t').focus();return}
+    const go=$('go');go.disabled=true;go.textContent='กำลังบันทึก…';
+    google.script.run
+      .withSuccessHandler(()=>{say('บันทึกเรียบร้อยแล้ว','good');$('f').reset();
+        document.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed','false'));
+        go.disabled=false;go.textContent='บันทึก';
+        if(google.script.host)setTimeout(()=>google.script.host.close(),1200)})
+      .withFailureHandler(er=>{say('บันทึกไม่สำเร็จ: '+er.message+' ลองกดบันทึกอีกครั้ง','err');go.disabled=false;go.textContent='บันทึก'})
+      .addRecord({vehicle:$('v').value,serviceType:$('t').value,mileage:$('k').value,cost:$('c').value})};
+  </script>`;
 }
