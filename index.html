@@ -48,6 +48,13 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .hero select{background:rgba(255,255,255,.95);font-weight:700}
 .thumb{width:84px;height:56px;object-fit:cover;border-radius:8px;flex:none}
 .car img.cover{display:block;width:calc(100% + 32px);margin:-16px -16px 12px;aspect-ratio:16/9;object-fit:cover;border-radius:12px 12px 0 0}
+.st{background:var(--card);border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.st .top{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.st b{font-size:19px}
+.st .tag{margin:0;padding:2px 10px;font-size:16px}
+.track{height:14px;background:#e1e8e3;border-radius:7px;overflow:hidden;margin:8px 0 6px}
+.fill{height:100%;border-radius:7px}
+.fill.ok{background:var(--ok)}.fill.soon{background:#c47f00}.fill.overdue{background:var(--bad)}
 .row2{display:grid;gap:10px;margin-top:20px}
 @media(min-width:700px){body{padding:32px}.row2{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:no-preference){.btn,.chip{transition:background .15s}}
@@ -57,15 +64,25 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 <div class="wrap">
   <h1>ดูแลรถ</h1>
   <nav aria-label="เมนู">
-    <a href="#add">บันทึกงาน</a><a href="#health">สุขภาพรถ</a><a href="#history">ประวัติ</a><a href="#cars">รถของฉัน</a><a href="#settings">ตั้งค่า</a>
+    <a href="#add">บันทึก</a><a href="#status">สถานะ</a><a href="#history">ประวัติ</a><a href="#cars">โปรไฟล์รถ</a>
   </nav>
   <div id="hero"></div>
+  <p class="hint"><a href="#settings">เชื่อม Google Sheet</a></p>
   <p id="sync" class="hint" role="status"></p>
   <main id="main"></main>
 </div>
 <script>
-const KEY='smart-old-car:v1', OIL_KM=5000, OIL_MONTHS=6, SOON=0.8, OIL_RE=/น้ำมันเครื่อง|oil/i;
-const TYPES=['เปลี่ยนน้ำมันเครื่อง','เปลี่ยนยาง','เปลี่ยนแบตเตอรี่','เปลี่ยนผ้าเบรก','ตรวจเช็คระยะ','อื่นๆ'];
+const KEY='smart-old-car:v1', SOON=0.8;
+// km = ระยะทางต่อรอบ (ไม่ใส่ = นับเวลาอย่างเดียว), mo = เดือนต่อรอบ, main = แสดงเสมอ
+const REMINDERS=[
+ {label:'เปลี่ยนน้ำมันเครื่อง',re:/น้ำมันเครื่อง|oil/i,km:5000,mo:6,main:1},
+ {label:'ต่อภาษี / พ.ร.บ.',re:/ภาษี|พ\.ร\.บ|พรบ/,mo:12,main:1,tax:1},
+ {label:'ล้างรถ',re:/ล้างรถ|wash/i,mo:1,main:1},
+ {label:'ตรวจเช็คระยะ',re:/ตรวจเช็ค/,km:10000,mo:12},
+ {label:'ผ้าเบรก',re:/เบรก/,km:40000,mo:36},
+ {label:'ยาง',re:/ยาง/,km:40000,mo:48},
+ {label:'แบตเตอรี่',re:/แบต/,mo:24}];
+const TYPES=['เปลี่ยนน้ำมันเครื่อง','ต่อภาษี / พ.ร.บ.','ล้างรถ','ตรวจเช็คระยะ','เปลี่ยนยาง','เปลี่ยนแบตเตอรี่','เปลี่ยนผ้าเบรก','อื่นๆ'];
 // ---- โปรไฟล์รถ (เก็บในเครื่องนี้ รวมรูป) ----
 let cars=[],active='';
 try{cars=JSON.parse(localStorage.getItem(KEY+':cars'))||[];active=localStorage.getItem(KEY+':active')||''}catch(e){}
@@ -112,25 +129,19 @@ function el(tag,attrs={},...kids){
 const msgBox=()=>el('div',{role:'alert',hidden:''});
 function say(box,t,k){box.className='msg '+k;box.textContent=t;box.hidden=false}
 
-function health(){
-  const by={};
-  recs.forEach(r=>{
-    const c=by[r.vehicle]||(by[r.vehicle]={vehicle:r.vehicle,km:0,oil:null,spent:0,count:0});
-    c.count++;c.spent+=+r.cost||0;c.km=Math.max(c.km,+r.km||0);
-    if(OIL_RE.test(r.type)&&(!c.oil||r.date>c.oil.date))c.oil={date:r.date,km:+r.km||0};
+function statusOf(name,taxDue){
+  const rs=recs.filter(r=>r.vehicle===name),curKm=Math.max(0,...rs.map(r=>+r.km||0)),now=Date.now(),MO=30.44*864e5;
+  return REMINDERS.map(R=>{
+    let last=null;
+    rs.forEach(r=>{if(R.re.test(r.type)&&(!last||r.date>last.date))last={date:r.date,km:+r.km||0}});
+    let due=last?new Date(last.date).getTime()+R.mo*MO:null;
+    if(R.tax&&taxDue&&(!due||new Date(taxDue)>due)){due=new Date(taxDue).getTime();last=last||{km:0}}
+    if(!due)return{R,status:'none',text:R.tax?'ใส่วันครบกำหนดภาษีในโปรไฟล์รถ หรือบันทึกงานนี้':'ยังไม่เคยบันทึก บันทึกงานนี้เพื่อเริ่มนับ'};
+    const timeR=1-(due-now)/(R.mo*MO),kmLeft=R.km&&last.km&&curKm?last.km+R.km-curKm:null;
+    const ratio=Math.max(timeR,kmLeft==null?0:1-kmLeft/R.km),days=Math.round((due-now)/864e5);
+    const d=days>=0?'อีก '+th(days)+' วัน':'เกินมา '+th(-days)+' วัน',k=kmLeft==null?'':(kmLeft>=0?' / อีก ':' / เกินมา ')+th(Math.abs(kmLeft))+' กม.';
+    return{R,status:ratio>=1?'overdue':ratio>=SOON?'soon':'ok',ratio:Math.max(0,Math.min(1,ratio)),text:d+k+' (ครบ '+new Date(due).toLocaleDateString('th-TH')+')'};
   });
-  const now=Date.now();
-  return Object.values(by).map(c=>{
-    let status='none',msg='ยังไม่เคยบันทึกการเปลี่ยนน้ำมันเครื่อง';
-    if(c.oil){
-      const d=new Date(c.oil.date),months=(now-d)/(30.44*864e5),kmSince=c.oil.km&&c.km?c.km-c.oil.km:0;
-      const ratio=Math.max(kmSince/OIL_KM,months/OIL_MONTHS);
-      status=ratio>=1?'overdue':ratio>=SOON?'soon':'ok';
-      const next=new Date(d.getTime()+OIL_MONTHS*30.44*864e5).toLocaleDateString('th-TH');
-      msg=(status==='overdue'?'เกินกำหนดเปลี่ยนน้ำมันเครื่อง':'เปลี่ยนน้ำมันเครื่องครั้งต่อไป')+' ภายใน '+next+(c.oil.km?' หรือที่ '+th(c.oil.km+OIL_KM)+' กม.':'');
-    }
-    return{...c,status,msg};
-  }).sort((a,b)=>['overdue','soon','none','ok'].indexOf(a.status)-['overdue','soon','none','ok'].indexOf(b.status));
 }
 
 function viewAdd(){
@@ -170,14 +181,22 @@ function viewAdd(){
   return[box,f];
 }
 
-function viewHealth(){
-  const L={ok:'ปกติ',soon:'ใกล้ถึงกำหนด',overdue:'เกินกำหนด',none:'ยังไม่มีข้อมูล'},hs=health();
-  if(!hs.length)return[el('div',{class:'empty'},'ยังไม่มีบันทึก กดเมนู "บันทึกงาน" เพื่อเริ่มต้น')];
-  hs.sort((a,b)=>(b.vehicle===(activeCar()||{}).name)-(a.vehicle===(activeCar()||{}).name));
-  return[...hs.map(c=>el('section',{class:'car'},
-    (carByName(c.vehicle)||{}).photo?el('img',{class:'cover',src:carByName(c.vehicle).photo,alt:''}):null,el('h2',{},c.vehicle),el('span',{class:'tag '+c.status},L[c.status]),el('div',{},c.msg),
-    el('p',{class:'meta'},`${c.count} รายการ · ใช้ไปแล้ว ${th(c.spent)} บาท`+(c.km?` · ไมล์ล่าสุด ${th(c.km)} กม.`:'')))),
-    el('p',{class:'hint'},`เปลี่ยนน้ำมันเครื่องทุก ${th(OIL_KM)} กม. หรือ ${OIL_MONTHS} เดือน แล้วแต่อย่างไหนถึงก่อน`)];
+function viewStatus(){
+  const L={ok:'ปกติ',soon:'ใกล้ถึงกำหนด',overdue:'เกินกำหนด',none:'ยังไม่มีข้อมูล'},ORD=['overdue','soon','ok','none'];
+  const targets=cars.length?[activeCar()]:[...new Set(recs.map(r=>r.vehicle))].map(n=>({name:n}));
+  if(!targets.length)return[el('div',{class:'empty'},'ยังไม่มีข้อมูล เริ่มจากเมนู "บันทึก" หรือเพิ่มรถที่ "โปรไฟล์รถ"')];
+  return[...targets.map(c=>{
+    const all=statusOf(c.name,c.taxDue),rows=all.filter(x=>x.R.main||x.status!=='none');
+    const bad=all.filter(x=>x.status==='overdue'||x.status==='soon').length;
+    return el('section',{class:'car'},
+      el('h2',{},c.name+(c.plate?' · '+c.plate:'')),
+      el('span',{class:'tag '+(bad?'soon':'ok')},bad?'ต้องจัดการ '+bad+' เรื่อง':'ทุกอย่างปกติ'),
+      ...rows.sort((a,b)=>ORD.indexOf(a.status)-ORD.indexOf(b.status)).map(x=>el('div',{class:'st'},
+        el('div',{class:'top'},el('b',{},x.R.label),el('span',{class:'tag '+x.status},L[x.status])),
+        el('div',{class:'track',role:'img','aria-label':x.status==='none'?'ไม่มีข้อมูล':'ใช้ไปแล้ว '+Math.round(x.ratio*100)+'% ของรอบ'},
+          x.status==='none'?null:el('div',{class:'fill '+x.status,style:'width:'+Math.max(4,x.ratio*100)+'%'})),
+        el('div',{class:'meta'},x.text))));
+  }),el('p',{class:'hint'},'แถบ = สัดส่วนของรอบที่ใช้ไปแล้ว (น้ำมันเครื่องทุก 5,000 กม. หรือ 6 เดือน, ล้างรถทุกเดือน) รายการอื่นๆ จะโผล่เมื่อบันทึกงานนั้น')];
 }
 
 function viewHistory(){
@@ -237,6 +256,10 @@ function viewSettings(){
 function viewCars(){
   const box=msgBox();let photo='',editId='';
   const n=el('input',{id:'n',autocomplete:'off',placeholder:'เช่น CR-V คันสีขาว'});
+  const pl=el('input',{id:'pl',autocomplete:'off',placeholder:'เช่น กข 1234 กรุงเทพ'});
+  const vn=el('input',{id:'vn',autocomplete:'off',placeholder:'เลขตัวถัง 17 หลัก'});
+  const tx=el('input',{id:'tx',type:'date'});
+  const nt=el('input',{id:'nt',autocomplete:'off',placeholder:'เช่น ประกันภัยชั้น 1 หมดเดือน มี.ค.'});
   const m=el('input',{id:'m',autocomplete:'off',placeholder:'เช่น Honda CR-V 2009'});
   const pv=el('img',{class:'thumb',alt:'',hidden:''});
   const pic=el('input',{id:'p',type:'file',accept:'image/*',onchange:async e=>{
@@ -246,27 +269,32 @@ function viewCars(){
     e.preventDefault();const name=n.value.trim();
     if(!name)return say(box,'กรุณาใส่ชื่อรถ','err'),n.focus();
     if(cars.some(c=>c.name===name&&c.id!==editId))return say(box,'มีรถชื่อนี้อยู่แล้ว','err');
-    const old=cars.slice(),oa=active;
-    if(editId){const c=cars.find(x=>x.id===editId);c.name=name;c.model=m.value.trim();if(photo)c.photo=photo}
-    else{const c={id:'c'+Date.now(),name,model:m.value.trim(),photo};cars.push(c);active=c.id}
+    const extra=nm=>({name:nm,model:m.value.trim(),plate:pl.value.trim(),vin:vn.value.trim(),taxDue:tx.value,note:nt.value.trim()});
+    const old=cars.map(x=>({...x})),oa=active;
+    if(editId){const c=cars.find(x=>x.id===editId);Object.assign(c,extra(name));if(photo)c.photo=photo}
+    else{const c={id:'c'+Date.now(),...extra(name),photo};cars.push(c);active=c.id}
     if(!saveCars()){cars=old;active=oa;return say(box,'บันทึกไม่ได้: พื้นที่เก็บข้อมูลเต็มหรือใช้ไม่ได้ ลองใช้รูปที่เล็กลง','err')}
     render();
   }},
     el('div',{class:'f'},el('label',{for:'n'},'ชื่อรถ'),n,el('div',{class:'hint'},'ชื่อนี้ใช้จับคู่กับรายการบันทึกงาน')),
     el('div',{class:'f'},el('label',{for:'m'},'รุ่น/ปี ',el('span',{class:'opt'},'(ไม่บังคับ)')),m),
+    el('div',{class:'f'},el('label',{for:'pl'},'ทะเบียน ',el('span',{class:'opt'},'(ไม่บังคับ)')),pl),
+    el('div',{class:'f'},el('label',{for:'vn'},'เลขตัวถัง ',el('span',{class:'opt'},'(ไม่บังคับ)')),vn),
+    el('div',{class:'f'},el('label',{for:'tx'},'ภาษีครบกำหนด ',el('span',{class:'opt'},'(ไม่บังคับ)')),tx,el('div',{class:'hint'},'ใช้เตือนต่อภาษี ถ้าบันทึกงาน "ต่อภาษี" ภายหลัง ระบบจะนับรอบใหม่ให้เอง')),
+    el('div',{class:'f'},el('label',{for:'nt'},'อื่นๆ ',el('span',{class:'opt'},'(โน้ตของรถคันนี้)')),nt),
     el('div',{class:'f'},el('label',{for:'p'},'รูปรถ ',el('span',{class:'opt'},'(ไม่บังคับ)')),pic,pv,el('div',{class:'hint'},'รูปเก็บในเครื่องนี้เท่านั้น และย่อให้อัตโนมัติ')),
     go);
   const list=cars.map(c=>el('div',{class:'rec'},
     c.photo?el('img',{class:'thumb',src:c.photo,alt:''}):el('div',{class:'thumb ph','aria-hidden':'true',style:'font-size:24px'},c.name.slice(0,1)),
-    el('div',{style:'flex:1'},el('b',{},c.name),el('span',{class:'meta'},c.model||'')),
-    el('button',{class:'chip',type:'button',onclick:()=>{editId=c.id;n.value=c.name;m.value=c.model||'';photo='';pv.src=c.photo||'';pv.hidden=!c.photo;go.textContent='บันทึกการแก้ไข';n.focus()}},'แก้ไข'),
+    el('div',{style:'flex:1'},el('b',{},c.name),el('span',{class:'meta'},[c.model,c.plate,c.vin&&'VIN '+c.vin,c.taxDue&&'ภาษี '+new Date(c.taxDue).toLocaleDateString('th-TH'),c.note].filter(Boolean).join(' · '))),
+    el('button',{class:'chip',type:'button',onclick:()=>{editId=c.id;n.value=c.name;m.value=c.model||'';pl.value=c.plate||'';vn.value=c.vin||'';tx.value=c.taxDue||'';nt.value=c.note||'';photo='';pv.src=c.photo||'';pv.hidden=!c.photo;go.textContent='บันทึกการแก้ไข';n.focus()}},'แก้ไข'),
     el('button',{class:'del','aria-label':'ลบรถ '+c.name,onclick:()=>{
       if(!confirm('ลบโปรไฟล์ "'+c.name+'"? ประวัติการซ่อมของรถคันนี้ยังอยู่'))return;
       cars=cars.filter(x=>x.id!==c.id);saveCars();render()}},'ลบ')));
-  return[box,...(list.length?list:[el('div',{class:'empty'},'ยังไม่มีโปรไฟล์รถ เพิ่มคันแรกด้านล่าง')]),el('h2',{style:'font-size:21px;margin:24px 0 12px'},'เพิ่ม / แก้ไขรถ'),f];
+  return[box,...(list.length?list:[el('div',{class:'empty'},'ยังไม่มีโปรไฟล์รถ เพิ่มคันแรกด้านล่าง')]),el('h2',{style:'font-size:21px;margin:24px 0 12px'},'เพิ่ม / แก้ไขโปรไฟล์รถ'),f];
 }
 
-const VIEWS={cars:viewCars,add:viewAdd,health:viewHealth,history:viewHistory,settings:viewSettings};
+const VIEWS={cars:viewCars,add:viewAdd,status:viewStatus,history:viewHistory,settings:viewSettings};
 function hero(){
   const h=document.getElementById('hero'),c=activeCar();
   if(!c)return h.replaceChildren();
