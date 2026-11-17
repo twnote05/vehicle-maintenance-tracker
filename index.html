@@ -20,9 +20,11 @@ header h1{margin:0;font-size:28px}
 header p{margin:0;color:var(--sub);font-size:16px}
 nav{position:fixed;inset:auto 0 0 0;z-index:5;display:flex;justify-content:center;background:#fff;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(15,23,42,.08);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
 nav .in{display:flex;gap:4px;width:100%;max-width:560px}
-nav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px;padding:6px 4px;border-radius:12px;color:var(--sub);font-size:15px;font-weight:600;text-decoration:none}
+nav a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px;padding:6px 4px;border-radius:12px;color:var(--sub);font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap}
 nav a:hover{background:#e2e8f0}
 nav a[aria-current=page]{background:#e6f0fc;color:var(--brand)}
+nav a{position:relative}
+.badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--bad);color:#fff;font-size:14px;line-height:22px;text-align:center}
 nav svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 h1{font-size:24px;margin:0 0 12px;line-height:1.25}
 label{display:block;font-weight:700;margin:0 0 6px}
@@ -90,18 +92,27 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
   <p id="sync" class="hint" role="status"></p>
   <main id="main"></main>
 </div>
-<nav aria-label="เมนู"><div class="in"><a href="#add"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg><span>บันทึก</span></a><a href="#status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg><span>สถานะ</span></a><a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg><span>ประวัติ</span></a><a href="#cars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg><span>โปรไฟล์</span></a></div></nav>
+<nav aria-label="เมนู"><div class="in"><a href="#add"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg><span>บันทึก</span></a><a href="#status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg><span>สถานะ</span></a><a href="#schedule"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg><span>ตารางซ่อม</span></a><a href="#alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>แจ้งเตือน</span></a><a href="#cars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg><span>โปรไฟล์</span></a></div></nav>
 <script>
 const KEY='smart-old-car:v1', SOON=0.8;
 // km = ระยะทางต่อรอบ (ไม่ใส่ = นับเวลาอย่างเดียว), mo = เดือนต่อรอบ, main = แสดงเสมอ
 const REMINDERS=[
- {label:'เปลี่ยนน้ำมันเครื่อง',re:/น้ำมันเครื่อง|oil/i,km:5000,mo:6,main:1},
+ {label:'เปลี่ยนน้ำมันเครื่อง',re:/น้ำมันเครื่อง|oil/i,not:/ไส้กรอง/,km:5000,mo:6,main:1},
  {label:'ต่อภาษี / พ.ร.บ.',re:/ภาษี|พ\.ร\.บ|พรบ/,mo:12,main:1,tax:1},
  {label:'ล้างรถ',re:/ล้างรถ|wash/i,mo:1,main:1},
+ {label:'ไส้กรองน้ำมันเครื่อง',re:/ไส้กรองน้ำมันเครื่อง/,km:10000,mo:12},
+ {label:'ไส้กรองอากาศ',re:/กรองอากาศ/,km:20000,mo:24},
  {label:'ตรวจเช็คระยะ',re:/ตรวจเช็ค/,km:10000,mo:12},
- {label:'ผ้าเบรก',re:/เบรก/,km:40000,mo:36},
+ {label:'น้ำมันเกียร์',re:/น้ำมันเกียร์/,km:40000,mo:48},
+ {label:'น้ำมันเบรก',re:/น้ำมันเบรก/,mo:24},
+ {label:'ผ้าเบรก',re:/ผ้าเบรก/,km:40000,mo:36},
  {label:'ยาง',re:/ยาง/,km:40000,mo:48},
  {label:'แบตเตอรี่',re:/แบต/,mo:24}];
+let sched={},prefill=null;
+try{sched=JSON.parse(localStorage.getItem(KEY+':sched'))||{}}catch(e){}
+const saveSched=()=>{try{localStorage.setItem(KEY+':sched',JSON.stringify(sched))}catch(e){}};
+const eff=R=>({...R,...(sched[R.label]||{})});
+const ivText=R=>[R.km?'ทุก '+R.km.toLocaleString('th-TH')+' กม.':'',R.mo?'ทุก '+(R.mo%12?R.mo+' เดือน':R.mo/12+' ปี'):''].filter(Boolean).join(' หรือ ');
 const TYPES=['เปลี่ยนน้ำมันเครื่อง','ต่อภาษี / พ.ร.บ.','ล้างรถ','ตรวจเช็คระยะ','เปลี่ยนยาง','เปลี่ยนแบตเตอรี่','เปลี่ยนผ้าเบรก','อื่นๆ'];
 // ---- โปรไฟล์รถ (เก็บในเครื่องนี้ รวมรูป) ----
 let cars=[],active='';
@@ -151,16 +162,16 @@ function say(box,t,k){box.className='msg '+k;box.textContent=t;box.hidden=false}
 
 function statusOf(name,taxDue){
   const rs=recs.filter(r=>r.vehicle===name),curKm=Math.max(0,...rs.map(r=>+r.km||0)),now=Date.now(),MO=30.44*864e5;
-  return REMINDERS.map(R=>{
+  return REMINDERS.map(R0=>{const R=eff(R0);
     let last=null;
-    rs.forEach(r=>{if(R.re.test(r.type)&&(!last||r.date>last.date))last={date:r.date,km:+r.km||0}});
+    rs.forEach(r=>{if(R.re.test(r.type)&&!(R.not&&R.not.test(r.type))&&(!last||r.date>last.date))last={date:r.date,km:+r.km||0}});
     let due=last?new Date(last.date).getTime()+R.mo*MO:null;
     if(R.tax&&taxDue&&(!due||new Date(taxDue)>due)){due=new Date(taxDue).getTime();last=last||{km:0}}
-    if(!due)return{R,status:'none',text:R.tax?'ใส่วันครบกำหนดภาษีในโปรไฟล์รถ หรือบันทึกงานนี้':'ยังไม่เคยบันทึก บันทึกงานนี้เพื่อเริ่มนับ'};
+    if(!due)return{R,last,status:'none',text:R.tax?'ใส่วันครบกำหนดภาษีในโปรไฟล์รถ หรือบันทึกงานนี้':'ยังไม่เคยบันทึก บันทึกงานนี้เพื่อเริ่มนับ'};
     const timeR=1-(due-now)/(R.mo*MO),kmLeft=R.km&&last.km&&curKm?last.km+R.km-curKm:null;
     const ratio=Math.max(timeR,kmLeft==null?0:1-kmLeft/R.km),days=Math.round((due-now)/864e5);
     const d=days>=0?'อีก '+th(days)+' วัน':'เกินมา '+th(-days)+' วัน',k=kmLeft==null?'':(kmLeft>=0?' / อีก ':' / เกินมา ')+th(Math.abs(kmLeft))+' กม.';
-    return{R,status:ratio>=1?'overdue':ratio>=SOON?'soon':'ok',ratio:Math.max(0,Math.min(1,ratio)),text:d+k+' (ครบ '+new Date(due).toLocaleDateString('th-TH')+')'};
+    return{R,last,status:ratio>=1?'overdue':ratio>=SOON?'soon':'ok',ratio:Math.max(0,Math.min(1,ratio)),text:d+k+' (ครบ '+new Date(due).toLocaleDateString('th-TH')+')'};
   });
 }
 
@@ -168,14 +179,14 @@ function viewAdd(){
   const box=msgBox();
   const names=[...new Set([...cars.map(c=>c.name),...recs.map(r=>r.vehicle)])];
   const last=activeCar()?activeCar().name:recs.length?recs[recs.length-1].vehicle:'';
-  const v=el('input',{id:'v',list:'cars',autocomplete:'off',placeholder:'เช่น Honda CR-V',value:last});
+  const v=el('input',{id:'v',list:'cars',autocomplete:'off',placeholder:'เช่น Honda CR-V',value:(prefill&&prefill.vehicle)||last});
   const t=el('input',{id:'t',autocomplete:'off',placeholder:'พิมพ์ หรือกดเลือกด้านล่าง'});
   const k=el('input',{id:'k',type:'number',inputmode:'numeric',min:'0',placeholder:'เช่น 85000'});
   const c=el('input',{id:'c',type:'number',inputmode:'numeric',min:'0',placeholder:'เช่น 1800'});
   const d=el('input',{id:'d',type:'date',value:today(),max:today()});
   const chips=TYPES.map(x=>el('button',{type:'button',class:'chip','aria-pressed':'false',onclick:()=>{t.value=x;sync()}},x));
   const sync=()=>chips.forEach(b=>b.setAttribute('aria-pressed',b.textContent===t.value));
-  t.oninput=sync;
+  t.oninput=sync;if(prefill){t.value=prefill.type;sync()}
   const go=el('button',{class:'btn',type:'submit'},'บันทึก');
   const f=el('form',{novalidate:'',onsubmit:async e=>{
     e.preventDefault();
@@ -198,7 +209,8 @@ function viewAdd(){
     el('div',{class:'f'},el('label',{for:'k'},'เลขไมล์ตอนนี้ ',el('span',{class:'opt'},'(ไม่บังคับ)')),k,el('div',{class:'hint'},'หน่วย กม. ช่วยให้เตือนรอบเปลี่ยนน้ำมันได้แม่นขึ้น')),
     el('div',{class:'f'},el('label',{for:'c'},'ค่าใช้จ่าย ',el('span',{class:'opt'},'(บาท, ไม่บังคับ)')),c),
     go);
-  return[box,f];
+  prefill=null;
+  return[box,f,el('p',{class:'hint'},el('a',{href:'#history'},'ดูประวัติทั้งหมด →'))];
 }
 
 const COLORS={overdue:'#dc2626',soon:'#d97706',ok:'#16a34a'};
@@ -327,7 +339,44 @@ function viewCars(){
   return[box,...(list.length?list:[el('div',{class:'empty'},'ยังไม่มีโปรไฟล์รถ เพิ่มคันแรกด้านล่าง')]),el('h2',{style:'font-size:21px;margin:24px 0 12px'},'เพิ่ม / แก้ไขโปรไฟล์รถ'),f];
 }
 
-const VIEWS={cars:viewCars,add:viewAdd,status:viewStatus,history:viewHistory,settings:viewSettings};
+const doneBtn=(vehicle,type)=>el('button',{class:'chip',type:'button',onclick:()=>{prefill={vehicle,type};location.hash='add'}},'บันทึกว่าทำแล้ว');
+const ST_L={ok:'ปกติ',soon:'ใกล้ถึงกำหนด',overdue:'เกินกำหนด',none:'ยังไม่มีข้อมูล'};
+function allAlerts(){
+  const names=[...new Set([...cars.map(c=>c.name),...recs.map(r=>r.vehicle)])];
+  return names.flatMap(n=>statusOf(n,(carByName(n)||{}).taxDue).filter(x=>x.status==='overdue'||x.status==='soon').map(x=>({...x,vehicle:n})))
+    .sort((a,b)=>(a.status==='overdue'?0:1)-(b.status==='overdue'?0:1)||b.ratio-a.ratio);
+}
+function viewAlerts(){
+  const list=allAlerts();
+  if(!list.length)return[el('div',{class:'empty'},'ตอนนี้ไม่มีเรื่องที่ต้องจัดการ'),el('p',{class:'hint'},'ระบบจะเตือนเมื่อเกิน 80% ของรอบ ดูรอบทั้งหมดและแก้ไขได้ที่ "ตารางซ่อม"')];
+  return[el('p',{class:'hint'},'เรียงจากเร่งด่วนที่สุด กด "บันทึกว่าทำแล้ว" เมื่อทำเสร็จเพื่อเริ่มนับรอบใหม่'),
+    ...list.map(x=>el('div',{class:'st'},
+      el('div',{class:'top'},el('b',{},x.R.label),el('span',{class:'tag '+x.status},ST_L[x.status])),
+      el('div',{class:'meta'},x.vehicle+' · '+x.text),el('div',{style:'margin-top:10px'},doneBtn(x.vehicle,x.R.label))))];
+}
+function viewSchedule(){
+  const c=activeCar(),name=c?c.name:(recs.length?recs[recs.length-1].vehicle:'');
+  if(!name)return[el('div',{class:'empty'},'เพิ่มรถที่ "โปรไฟล์" หรือบันทึกงานก่อน เพื่อดูตารางซ่อม')];
+  const rows=statusOf(name,c&&c.taxDue);
+  return[el('p',{class:'hint'},'ตารางรอบซ่อมของ '+name+' แก้รอบให้ตรงคู่มือรถได้ (เก็บในเครื่องนี้)'),
+    ...rows.map(x=>{
+      const R=x.R,kmI=el('input',{type:'number',inputmode:'numeric',min:'0',value:R.km||'',placeholder:'ไม่นับกม.','aria-label':'ทุกกี่ กม.'});
+      const moI=el('input',{type:'number',inputmode:'numeric',min:'1',value:R.mo,'aria-label':'ทุกกี่เดือน'});
+      return el('div',{class:'st'},
+        el('div',{class:'top'},el('b',{},R.label),el('span',{class:'tag '+x.status},ST_L[x.status])),
+        el('div',{class:'meta'},'รอบ: '+ivText(R)),
+        el('div',{class:'meta'},x.last&&x.last.date?'ทำล่าสุด '+new Date(x.last.date).toLocaleDateString('th-TH')+(x.last.km?' · '+th(x.last.km)+' กม.':''):'ยังไม่เคยบันทึก'),
+        x.status!=='none'?el('div',{class:'meta'},'ครบกำหนด: '+x.text):null,
+        el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px'},doneBtn(name,R.label)),
+        el('details',{style:'margin-top:10px'},el('summary',{style:'cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center'},'แก้รอบ'),
+          el('div',{class:'row2',style:'margin-top:8px'},el('div',{},el('label',{},'ทุกกี่ กม.'),kmI),el('div',{},el('label',{},'ทุกกี่เดือน'),moI)),
+          el('div',{class:'row2'},
+            el('button',{class:'btn alt',type:'button',onclick:()=>{const m=Math.max(1,+moI.value||R.mo);sched[R.label]={km:Math.max(0,+kmI.value||0),mo:m};saveSched();render()}},'บันทึกรอบ'),
+            el('button',{class:'btn alt',type:'button',onclick:()=>{delete sched[R.label];saveSched();render()}},'ใช้ค่าเริ่มต้น'))));
+    })];
+}
+
+const VIEWS={schedule:viewSchedule,alerts:viewAlerts,cars:viewCars,add:viewAdd,status:viewStatus,history:viewHistory,settings:viewSettings};
 function hero(){
   const h=document.getElementById('hero'),c=activeCar();
   if(!c)return h.replaceChildren();
@@ -335,10 +384,15 @@ function hero(){
     cars.map(x=>el('option',{value:x.id,...(x.id===c.id?{selected:''}:{})},x.name+(x.model?' · '+x.model:''))));
   h.replaceChildren(el('div',{class:'hero'},c.photo?el('img',{src:c.photo,alt:c.name}):el('div',{class:'ph','aria-hidden':'true'},c.name.slice(0,1)),el('div',{class:'bar'},sel)));
 }
+function badge(){
+  const a=document.querySelector('nav a[href="#alerts"]'),n=allAlerts().length,b=a.querySelector('.badge');
+  if(b)b.remove();
+  if(n)a.append(el('span',{class:'badge','aria-label':n+' เรื่องที่ต้องจัดการ'},n));
+}
 function render(){
   const h=VIEWS[location.hash.slice(1)]?location.hash.slice(1):'add';
   document.querySelectorAll('nav a').forEach(a=>a.getAttribute('href')==='#'+h?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));
-  hero();document.getElementById('main').replaceChildren(...VIEWS[h]());
+  badge();hero();document.getElementById('main').replaceChildren(...VIEWS[h]());
 }
 addEventListener('hashchange',render);render();pull();
 </script>
