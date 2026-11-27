@@ -16,6 +16,7 @@
 :root{--bg:#f2f4f8;--card:#fff;--ink:#0f172a;--sub:#475569;--line:#cbd5e1;--brand:#0a64c8;--brand-d:#084e9e;
 --ok:#166534;--ok-bg:#dcfce7;--soon:#7c4a03;--soon-bg:#fef3c7;--bad:#991b1b;--bad-bg:#fee2e2}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;padding:16px 16px 40px;background:var(--bg);color:var(--ink);font:18px/1.5 'Sarabun','Noto Sans Thai','Segoe UI',Tahoma,sans-serif}
 .wrap{max-width:560px;margin:0 auto}
 body{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
@@ -115,7 +116,7 @@ const REMINDERS=[
  {label:'ผ้าเบรก',re:/ผ้าเบรก/,km:40000,mo:36},
  {label:'ยาง',re:/ยาง/,km:40000,mo:48},
  {label:'แบตเตอรี่',re:/แบต/,mo:24}];
-let sched={},prefill=null;
+let sched={},prefill=null,editing=null;
 try{sched=JSON.parse(localStorage.getItem(KEY+':sched'))||{}}catch(e){}
 const saveSched=()=>{try{localStorage.setItem(KEY+':sched',JSON.stringify(sched))}catch(e){}};
 const eff=R=>({...R,...(sched[R.label]||{})});
@@ -137,6 +138,18 @@ const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4)
 let recs=[];
 try{recs=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(recs));return true}catch(e){return false}};
+// ทุกรายการผูกกับรถด้วย carId; รายการเก่าที่มีแต่ชื่อ → จับคู่/สร้างโปรไฟล์ให้ (ใช้ตอนโหลดและหลังดึงจาก Sheet)
+function ensureCars(){
+  let ch=0;
+  recs.forEach(r=>{
+    let c=cars.find(x=>x.id===r.carId)||carByName(r.vehicle);
+    if(!c){c={id:r.carId||'c'+Date.now()+Math.random().toString(36).slice(2,6),name:r.vehicle};cars.push(c);ch=1}
+    if(r.carId!==c.id)r.carId=c.id;
+    r.vehicle=c.name;
+  });
+  if(ch)saveCars();
+}
+ensureCars();
 
 // ---- Google Sheet (ผ่าน Apps Script API). ไม่ตั้งค่า = เก็บในเครื่องอย่างเดียว ----
 let cfg={url:'',token:''};
@@ -150,10 +163,15 @@ async function api(body){
   return j;
 }
 const setSync=t=>document.getElementById('sync').textContent=t;
+async function renameRemote(carId){
+  setSync('กำลังอัปเดตชื่อรถใน Google Sheet…');
+  try{for(const r of recs.filter(r=>r.carId===carId))await api({action:'edit',rec:r});setSync('เชื่อม Google Sheet แล้ว')}
+  catch(e){setSync('อัปเดตชื่อรถใน Google Sheet ไม่สำเร็จ ('+e.message+') ต้องอัปเดตสคริปต์ Apps Script เป็นเวอร์ชันล่าสุด')}
+}
 async function pull(){
   if(!remoteOn())return setSync('เก็บในเครื่องนี้เท่านั้น (ยังไม่ได้เชื่อม Google Sheet)');
   setSync('กำลังโหลดจาก Google Sheet…');
-  try{recs=(await api()).rows;save();setSync('เชื่อม Google Sheet แล้ว');render()}
+  try{recs=(await api()).rows;ensureCars();save();setSync('เชื่อม Google Sheet แล้ว');render()}
   catch(e){setSync('เชื่อม Google Sheet ไม่ได้ ('+e.message+') กำลังแสดงข้อมูลที่จำไว้ในเครื่อง')}
 }
 
@@ -167,8 +185,8 @@ function el(tag,attrs={},...kids){
 const msgBox=()=>el('div',{role:'alert',hidden:''});
 function say(box,t,k){box.className='msg '+k;box.textContent=t;box.hidden=false}
 
-function statusOf(name,taxDue){
-  const rs=recs.filter(r=>r.vehicle===name),curKm=Math.max(0,...rs.map(r=>+r.km||0)),now=Date.now(),MO=30.44*864e5;
+function statusOf(car){
+  const taxDue=car.taxDue,rs=recs.filter(r=>r.carId===car.id),curKm=Math.max(0,...rs.map(r=>+r.km||0)),now=Date.now(),MO=30.44*864e5;
   return REMINDERS.map(R0=>{const R=eff(R0);
     let last=null;
     rs.forEach(r=>{if(R.re.test(r.type)&&!(R.not&&R.not.test(r.type))&&(!last||r.date>last.date))last={date:r.date,km:+r.km||0}});
@@ -184,45 +202,56 @@ function statusOf(name,taxDue){
 
 function viewAdd(){
   const box=msgBox();
-  const names=[...new Set([...cars.map(c=>c.name),...recs.map(r=>r.vehicle)])];
-  const last=activeCar()?activeCar().name:recs.length?recs[recs.length-1].vehicle:'';
-  const v=el('input',{id:'v',list:'cars',autocomplete:'off',placeholder:'เช่น Honda CR-V',value:(prefill&&prefill.vehicle)||last});
+  const names=cars.map(c=>c.name);
+  const last=activeCar()?activeCar().name:'';
+  const v=el('input',{id:'v',list:'cars',autocomplete:'off',placeholder:'เช่น Honda CR-V',value:(editing||prefill||{}).vehicle||last});
   const t=el('input',{id:'t',autocomplete:'off',placeholder:'พิมพ์ หรือกดเลือกด้านล่าง'});
   const k=el('input',{id:'k',type:'number',inputmode:'numeric',min:'0',placeholder:'เช่น 85000'});
   const c=el('input',{id:'c',type:'number',inputmode:'numeric',min:'0',placeholder:'เช่น 1800'});
   const d=el('input',{id:'d',type:'date',value:today(),max:today()});
   const chips=TYPES.map(x=>el('button',{type:'button',class:'chip','aria-pressed':'false',onclick:()=>{t.value=x;sync()}},x));
   const sync=()=>chips.forEach(b=>b.setAttribute('aria-pressed',b.textContent===t.value));
-  t.oninput=sync;if(prefill){t.value=prefill.type;sync()}
-  const go=el('button',{class:'btn',type:'submit'},'บันทึก');
+  t.oninput=sync;if(editing||prefill){t.value=(editing||prefill).type;sync()}
+  const nt=el('input',{id:'nt',autocomplete:'off',placeholder:'เช่น อู่ลุงสมชาย ยางยี่ห้อ Michelin'});
+  if(editing){k.value=editing.km;c.value=editing.cost;d.value=editing.date;nt.value=editing.note||''}
+  const label=editing?'บันทึกการแก้ไข':'บันทึก';
+  const go=el('button',{class:'btn',type:'submit'},label);
   const f=el('form',{novalidate:'',onsubmit:async e=>{
     e.preventDefault();
     if(!v.value.trim())return say(box,'กรุณาใส่ชื่อรถ','err'),v.focus();
     if(!t.value.trim())return say(box,'กรุณาเลือกหรือพิมพ์ว่าทำอะไรไป','err'),t.focus();
     if(k.value<0||c.value<0)return say(box,'เลขไมล์และค่าใช้จ่ายต้องไม่ติดลบ','err');
-    const rec={id:Date.now(),date:d.value||today(),vehicle:v.value.trim(),type:t.value.trim(),km:k.value===''?'':+k.value,cost:c.value===''?'':+c.value};
+    const name=v.value.trim();let car=carByName(name);
+    if(!car){car={id:'c'+Date.now(),name};cars.push(car);if(!active)active=car.id;saveCars()}
+    const rec={id:editing?editing.id:Date.now(),date:d.value||today(),vehicle:name,carId:car.id,type:t.value.trim(),km:k.value===''?'':+k.value,cost:c.value===''?'':+c.value,note:nt.value.trim()};
     go.disabled=true;go.textContent='กำลังบันทึก…';
     try{
+      if(editing){
+        if(remoteOn())await api({action:'edit',rec});
+        recs=recs.map(x=>x.id===rec.id?rec:x);save();editing=null;location.hash='history';return;
+      }
       if(remoteOn())await api({action:'add',rec});
       recs.push(rec);
       if(!save()&&!remoteOn()){recs.pop();throw new Error('พื้นที่เก็บข้อมูลของเบราว์เซอร์ใช้ไม่ได้ (โหมดส่วนตัว?)')}
       t.value=k.value=c.value='';sync();say(box,remoteOn()?'บันทึกลง Google Sheet เรียบร้อยแล้ว':'บันทึกเรียบร้อยแล้ว','good');
     }catch(er){say(box,'บันทึกไม่สำเร็จ: '+er.message+' ลองกดบันทึกอีกครั้ง','err')}
-    go.disabled=false;go.textContent='บันทึก';
+    go.disabled=false;go.textContent=label;
   }},
     el('div',{class:'f'},el('label',{for:'v'},'รถคันไหน'),v,el('datalist',{id:'cars'},names.map(x=>el('option',{value:x})))),
     el('div',{class:'f'},el('label',{for:'t'},'ทำอะไรไป'),t,el('div',{class:'chips'},chips)),
     el('div',{class:'f'},el('label',{for:'d'},'วันที่'),d),
     el('div',{class:'f'},el('label',{for:'k'},'เลขไมล์ตอนนี้ ',el('span',{class:'opt'},'(ไม่บังคับ)')),k,el('div',{class:'hint'},'หน่วย กม. ช่วยให้เตือนรอบเปลี่ยนน้ำมันได้แม่นขึ้น')),
     el('div',{class:'f'},el('label',{for:'c'},'ค่าใช้จ่าย ',el('span',{class:'opt'},'(บาท, ไม่บังคับ)')),c),
+    el('div',{class:'f'},el('label',{for:'nt'},'ร้าน / หมายเหตุ ',el('span',{class:'opt'},'(ไม่บังคับ)')),nt),
     go);
+  const cancel=editing?el('button',{class:'btn alt',type:'button',style:'margin-top:10px',onclick:()=>{editing=null;location.hash='history'}},'ยกเลิกการแก้ไข'):null;
   prefill=null;
-  return[box,f,el('p',{class:'hint'},el('a',{href:'#history'},'ดูประวัติทั้งหมด →'))];
+  return[...(editing?[el('h2',{style:'font-size:21px;margin:0 0 12px'},'แก้ไขรายการ')]:[]),box,f,...(cancel?[cancel]:[]),el('p',{class:'hint'},el('a',{href:'#history'},'ดูประวัติทั้งหมด →'))];
 }
 
 const COLORS={overdue:'#dc2626',soon:'#d97706',ok:'#16a34a'};
 function dash(c,all){
-  const rs=recs.filter(r=>r.vehicle===c.name),km=Math.max(0,...rs.map(r=>+r.km||0));
+  const rs=recs.filter(r=>r.carId===c.id),km=Math.max(0,...rs.map(r=>+r.km||0));
   const n={overdue:0,soon:0,ok:0};all.forEach(x=>n[x.status]!==undefined&&n[x.status]++);
   const tot=n.overdue+n.soon+n.ok;let a=0;
   const stops=tot?['overdue','soon','ok'].map(k=>{const f=a,t=a+n[k]/tot*100;a=t;return COLORS[k]+' '+f+'% '+t+'%'}).join(','):'#e2e8f0 0 100%';
@@ -235,10 +264,10 @@ function dash(c,all){
 }
 function viewStatus(){
   const L={ok:'ปกติ',soon:'ใกล้ถึงกำหนด',overdue:'เกินกำหนด',none:'ยังไม่มีข้อมูล'},ORD=['overdue','soon','ok','none'];
-  const targets=cars.length?[activeCar()]:[...new Set(recs.map(r=>r.vehicle))].map(n=>({name:n}));
+  const targets=cars.length?[activeCar()]:[];
   if(!targets.length)return[el('div',{class:'empty'},'ยังไม่มีข้อมูล เริ่มจากเมนู "บันทึก" หรือเพิ่มรถที่ "โปรไฟล์รถ"')];
   return[...targets.flatMap(c=>{
-    const all=statusOf(c.name,c.taxDue),rows=all.filter(x=>x.R.main||x.status!=='none');
+    const all=statusOf(c),rows=all.filter(x=>x.R.main||x.status!=='none');
     const bad=all.filter(x=>x.status==='overdue'||x.status==='soon').length;
     return[dash(c,all),el('section',{class:'car'},
       el('h2',{},c.name+(c.plate?' · '+c.plate:'')),
@@ -252,36 +281,56 @@ function viewStatus(){
 }
 
 let histCar='';
+const MN=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 function viewHistory(){
   const box=msgBox();
-  const names=[...new Set(recs.map(r=>r.vehicle))];
-  if(!names.includes(histCar))histCar='';
-  const shown=recs.filter(r=>!histCar||r.vehicle===histCar),total=shown.reduce((s,r)=>s+(+r.cost||0),0);
-  const filt=names.length>1?el('div',{class:'chips'},['',...names].map(n=>el('button',{type:'button',class:'chip','aria-pressed':String(n===histCar),onclick:()=>{histCar=n;render()}},n||'ทุกคัน'))):null;
-  const sum=el('p',{class:'hint'},`${th(shown.length)} รายการ · ค่าใช้จ่ายรวม ${th(total)} บาท`);
-  const list=[...shown].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).map(r=>el('div',{class:'rec'},
-    el('div',{},el('b',{},r.type),el('span',{class:'meta'},`${r.vehicle} · ${new Date(r.date).toLocaleDateString('th-TH')}`+(r.km!==''?` · ${th(r.km)} กม.`:'')+(r.cost!==''?` · ${th(r.cost)} บาท`:''))),
-    el('button',{class:'del','aria-label':'ลบ '+r.type,onclick:async()=>{
-      if(!confirm('ลบรายการ "'+r.type+'" ใช่ไหม? ลบแล้วกู้คืนไม่ได้'))return;
-      try{if(remoteOn())await api({action:'del',id:r.id})}catch(er){return say(box,'ลบไม่สำเร็จ: '+er.message,'err')}
-      recs=recs.filter(x=>x.id!==r.id);save();render();
-    }},'ลบ')));
+  if(!cars.some(c=>c.id===histCar))histCar='';
+  const mine=recs.filter(r=>!histCar||r.carId===histCar);
+  const filt=cars.length>1?el('div',{class:'chips'},[{id:'',name:'ทุกคัน'},...cars].map(c=>el('button',{type:'button',class:'chip','aria-pressed':String(c.id===histCar),onclick:()=>{histCar=c.id;render()}},c.name))):null;
+  const q=el('input',{type:'search',placeholder:'ค้นหา เช่น ยาง, ชื่ออู่','aria-label':'ค้นหาในประวัติ',autocomplete:'off',style:'margin:12px 0'});
+  const sum=el('p',{class:'hint',role:'status'}),none=el('div',{class:'empty'},'ไม่พบรายการ');
+  const rows=[...mine].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).map(r=>({r,text:(r.type+' '+r.vehicle+' '+(r.note||'')).toLowerCase(),n:el('div',{class:'rec'},
+    el('div',{},el('b',{},r.type),el('span',{class:'meta'},`${r.vehicle} · ${new Date(r.date).toLocaleDateString('th-TH')}`+(r.km!==''?` · ${th(r.km)} กม.`:'')+(r.cost!==''?` · ${th(r.cost)} บาท`:'')+(r.note?` · ${r.note}`:''))),
+    el('div',{style:'display:flex;gap:8px'},
+      el('button',{class:'chip','aria-label':'แก้ไข '+r.type,onclick:()=>{editing=r;location.hash='add'}},'แก้ไข'),
+      el('button',{class:'del','aria-label':'ลบ '+r.type,onclick:async()=>{
+        if(!confirm('ลบรายการ "'+r.type+'" ใช่ไหม? ลบแล้วกู้คืนไม่ได้'))return;
+        try{if(remoteOn())await api({action:'del',id:r.id})}catch(er){return say(box,'ลบไม่สำเร็จ: '+er.message,'err')}
+        recs=recs.filter(x=>x.id!==r.id);save();render();
+      }},'ลบ')))}));
+  const apply=()=>{
+    const s=q.value.trim().toLowerCase();let c=0,t=0;
+    rows.forEach(x=>{const ok=!s||x.text.includes(s);x.n.hidden=!ok;if(ok){c++;t+=+x.r.cost||0}});
+    sum.textContent=`${th(c)} รายการ · ค่าใช้จ่ายรวม ${th(t)} บาท`;none.hidden=c>0;
+  };
+  q.oninput=apply;apply();
+  const by={};
+  mine.forEach(r=>{const c=+r.cost||0;if(!c)return;const y=r.date.slice(0,4),m=+r.date.slice(5,7);by[y]=by[y]||{t:0,m:{}};by[y].t+=c;by[y].m[m]=(by[y].m[m]||0)+c});
+  const yearly=Object.keys(by).sort().reverse().map(y=>el('details',{class:'st'},
+    el('summary',{style:'cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center'},`ปี ${+y+543} · ${th(by[y].t)} บาท`),
+    ...Object.keys(by[y].m).sort((a,b)=>b-a).map(m=>el('div',{class:'meta'},`${MN[m-1]} · ${th(by[y].m[m])} บาท`))));
   const file=el('input',{type:'file',accept:'application/json',hidden:'',onchange:async e=>{
     try{
-      const data=JSON.parse(await e.target.files[0].text());
-      if(!Array.isArray(data)||!data.every(r=>r&&r.vehicle&&r.type&&r.date))throw 0;
-      if(!confirm('นำเข้า '+data.length+' รายการ? ข้อมูลปัจจุบันจะถูกแทนที่'))return;
-      recs=data;save();render();
+      const raw=JSON.parse(await e.target.files[0].text()),d=Array.isArray(raw)?{recs:raw}:raw;
+      if(!d||!Array.isArray(d.recs)||!d.recs.every(r=>r&&r.vehicle&&r.type&&r.date))throw 0;
+      if(d.cars&&!(Array.isArray(d.cars)&&d.cars.every(c=>c&&c.id&&c.name)))throw 0;
+      if(d.sched&&typeof d.sched!=='object')throw 0;
+      if(!confirm('นำเข้า '+(remoteOn()?'โปรไฟล์รถและรอบซ่อม (รายการซ่อมดึงจาก Google Sheet)':d.recs.length+' รายการซ่อม พร้อมโปรไฟล์รถและรอบซ่อม')+'? ข้อมูลปัจจุบันจะถูกแทนที่'))return;
+      if(!remoteOn())recs=d.recs;
+      if(d.cars){cars=d.cars;active=d.active||'';saveCars()}
+      if(d.sched){sched=d.sched;saveSched()}
+      ensureCars();save();render();
     }catch(_){say(box,'ไฟล์ไม่ถูกต้อง ใช้ไฟล์สำรองที่โหลดจากแอปนี้เท่านั้น','err')}
+    e.target.value='';
   }});
   const backup=el('button',{class:'btn alt',onclick:()=>{
-    const a=el('a',{href:URL.createObjectURL(new Blob([JSON.stringify(recs,null,1)],{type:'application/json'})),download:'ดูแลรถ-สำรอง-'+today()+'.json'});
+    const a=el('a',{href:URL.createObjectURL(new Blob([JSON.stringify({v:2,recs,cars,sched,active},null,1)],{type:'application/json'})),download:'ดูแลรถ-สำรอง-'+today()+'.json'});
     a.click();URL.revokeObjectURL(a.href);
   }},'โหลดไฟล์สำรอง');
-  return[box,...(filt?[filt]:[]),...(shown.length?[sum]:[]),...(list.length?list:[el('div',{class:'empty'},'ยังไม่มีรายการ')]),
-    ...(remoteOn()?[el('div',{class:'row2'},backup)]
-    :[el('p',{class:'hint'},'ข้อมูลเก็บในเครื่องนี้เท่านั้น เปลี่ยนมือถือหรือล้างข้อมูลเบราว์เซอร์แล้วจะหาย เชื่อม Google Sheet ที่เมนู "ตั้งค่า" หรือโหลดไฟล์สำรองไว้เป็นระยะ'),
-      el('div',{class:'row2'},backup,el('button',{class:'btn alt',onclick:()=>file.click()},'นำเข้าไฟล์สำรอง'),file)])];
+  return[box,...(filt?[filt]:[]),q,...(rows.length?[sum,none,...rows.map(x=>x.n)]:[el('div',{class:'empty'},'ยังไม่มีรายการ')]),
+    ...(yearly.length?[el('h2',{style:'font-size:21px;margin:24px 0 8px'},'ค่าใช้จ่ายรายปี'),...yearly]:[]),
+    ...(remoteOn()?[]:[el('p',{class:'hint'},'ข้อมูลเก็บในเครื่องนี้เท่านั้น เปลี่ยนมือถือหรือล้างข้อมูลเบราว์เซอร์แล้วจะหาย เชื่อม Google Sheet ที่เมนู "ตั้งค่า" หรือโหลดไฟล์สำรองไว้เป็นระยะ')]),
+    el('div',{class:'row2'},backup,el('button',{class:'btn alt',onclick:()=>file.click()},'นำเข้าไฟล์สำรอง'),file)];
 }
 
 function viewSettings(){
@@ -299,7 +348,7 @@ function viewSettings(){
       const rows=(await api()).rows;
       if(rows.length===0&&recs.length&&confirm('Google Sheet ยังว่างอยู่ ส่ง '+recs.length+' รายการในเครื่องนี้ขึ้นไปไหม?'))
         for(const rec of recs)await api({action:'add',rec});
-      else recs=rows;
+      else{recs=rows;ensureCars()}
       localStorage.setItem(KEY+':cfg',JSON.stringify(cfg));save();pull();
       say(box,'เชื่อม Google Sheet สำเร็จ','good');
     }catch(er){cfg=prev;say(box,'เชื่อมไม่สำเร็จ: '+er.message+' ตรวจลิงก์และรหัสลับอีกครั้ง','err')}
@@ -329,12 +378,14 @@ function viewCars(){
     if(cars.some(c=>c.name===name&&c.id!==editId))return say(box,'มีรถชื่อนี้อยู่แล้ว','err');
     const extra=nm=>({name:nm,model:m.value.trim(),plate:pl.value.trim(),vin:vn.value.trim(),taxDue:tx.value,note:nt.value.trim()});
     const old=cars.map(x=>({...x})),oa=active;
-    if(editId){const c=cars.find(x=>x.id===editId);Object.assign(c,extra(name));if(photo)c.photo=photo}
+    let ren=null;
+    if(editId){const c=cars.find(x=>x.id===editId);if(c.name!==name)ren=c;Object.assign(c,extra(name));if(photo)c.photo=photo}
     else{const c={id:'c'+Date.now(),...extra(name),photo};cars.push(c);active=c.id}
     if(!saveCars()){cars=old;active=oa;return say(box,'บันทึกไม่ได้: พื้นที่เก็บข้อมูลเต็มหรือใช้ไม่ได้ ลองใช้รูปที่เล็กลง','err')}
+    if(ren){recs.forEach(r=>{if(r.carId===ren.id)r.vehicle=name});save();if(remoteOn())renameRemote(ren.id)}
     render();
   }},
-    el('div',{class:'f'},el('label',{for:'n'},'ชื่อรถ'),n,el('div',{class:'hint'},'ชื่อนี้ใช้จับคู่กับรายการบันทึกงาน')),
+    el('div',{class:'f'},el('label',{for:'n'},'ชื่อรถ'),n,el('div',{class:'hint'},'แก้ชื่อภายหลังได้ ประวัติจะตามไปเอง')),
     el('div',{class:'f'},el('label',{for:'m'},'รุ่น/ปี ',el('span',{class:'opt'},'(ไม่บังคับ)')),m),
     el('div',{class:'f'},el('label',{for:'pl'},'ทะเบียน ',el('span',{class:'opt'},'(ไม่บังคับ)')),pl),
     el('div',{class:'f'},el('label',{for:'vn'},'เลขตัวถัง ',el('span',{class:'opt'},'(ไม่บังคับ)')),vn),
@@ -347,7 +398,9 @@ function viewCars(){
     el('div',{style:'flex:1'},el('b',{},c.name),el('span',{class:'meta'},[c.model,c.plate,c.vin&&'VIN '+c.vin,c.taxDue&&'ภาษี '+new Date(c.taxDue).toLocaleDateString('th-TH'),c.note].filter(Boolean).join(' · '))),
     el('button',{class:'chip',type:'button',onclick:()=>{editId=c.id;n.value=c.name;m.value=c.model||'';pl.value=c.plate||'';vn.value=c.vin||'';tx.value=c.taxDue||'';nt.value=c.note||'';photo='';pv.src=c.photo||'';pv.hidden=!c.photo;go.textContent='บันทึกการแก้ไข';n.focus()}},'แก้ไข'),
     el('button',{class:'del','aria-label':'ลบรถ '+c.name,onclick:()=>{
-      if(!confirm('ลบโปรไฟล์ "'+c.name+'"? ประวัติการซ่อมของรถคันนี้ยังอยู่'))return;
+      const n=recs.filter(r=>r.carId===c.id).length;
+      if(n)return say(box,'รถคันนี้มีประวัติ '+n+' รายการ ลบรายการที่เมนู "ประวัติ" ให้หมดก่อนจึงจะลบโปรไฟล์ได้','err');
+      if(!confirm('ลบโปรไฟล์ "'+c.name+'"?'))return;
       cars=cars.filter(x=>x.id!==c.id);saveCars();render()}},'ลบ')));
   return[box,...(list.length?list:[el('div',{class:'empty'},'ยังไม่มีโปรไฟล์รถ เพิ่มคันแรกด้านล่าง')]),el('h2',{style:'font-size:21px;margin:24px 0 12px'},'เพิ่ม / แก้ไขโปรไฟล์รถ'),f];
 }
@@ -355,8 +408,7 @@ function viewCars(){
 const doneBtn=(vehicle,type)=>el('button',{class:'chip',type:'button',onclick:()=>{prefill={vehicle,type};location.hash='add'}},'บันทึกว่าทำแล้ว');
 const ST_L={ok:'ปกติ',soon:'ใกล้ถึงกำหนด',overdue:'เกินกำหนด',none:'ยังไม่มีข้อมูล'};
 function allAlerts(){
-  const names=[...new Set([...cars.map(c=>c.name),...recs.map(r=>r.vehicle)])];
-  return names.flatMap(n=>statusOf(n,(carByName(n)||{}).taxDue).filter(x=>x.status==='overdue'||x.status==='soon').map(x=>({...x,vehicle:n})))
+  return cars.flatMap(c=>statusOf(c).filter(x=>x.status==='overdue'||x.status==='soon').map(x=>({...x,vehicle:c.name})))
     .sort((a,b)=>(a.status==='overdue'?0:1)-(b.status==='overdue'?0:1)||b.ratio-a.ratio);
 }
 function viewAlerts(){
@@ -368,9 +420,9 @@ function viewAlerts(){
       el('div',{class:'meta'},x.vehicle+' · '+x.text),el('div',{style:'margin-top:10px'},doneBtn(x.vehicle,x.R.label))))];
 }
 function viewSchedule(){
-  const c=activeCar(),name=c?c.name:(recs.length?recs[recs.length-1].vehicle:'');
-  if(!name)return[el('div',{class:'empty'},'เพิ่มรถที่ "โปรไฟล์" หรือบันทึกงานก่อน เพื่อดูตารางซ่อม')];
-  const rows=statusOf(name,c&&c.taxDue);
+  const c=activeCar(),name=c&&c.name;
+  if(!c)return[el('div',{class:'empty'},'เพิ่มรถที่ "โปรไฟล์" หรือบันทึกงานก่อน เพื่อดูตารางซ่อม')];
+  const rows=statusOf(c);
   return[el('p',{class:'hint'},'ตารางรอบซ่อมของ '+name+' แก้รอบให้ตรงคู่มือรถได้ (เก็บในเครื่องนี้)'),
     ...rows.map(x=>{
       const R=x.R,kmI=el('input',{type:'number',inputmode:'numeric',min:'0',value:R.km||'',placeholder:'ไม่นับกม.','aria-label':'ทุกกี่ กม.'});
@@ -404,10 +456,12 @@ function badge(){
 }
 function render(){
   const h=VIEWS[location.hash.slice(1)]?location.hash.slice(1):'add';
+  if(h!=='add')editing=null;
   document.querySelectorAll('nav a').forEach(a=>a.getAttribute('href')==='#'+h?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));
   badge();hero();document.getElementById('main').replaceChildren(...VIEWS[h]());
 }
 addEventListener('hashchange',render);render();pull();
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
 </html>
