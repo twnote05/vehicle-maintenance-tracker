@@ -99,7 +99,7 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
   <p id="sync" class="hint" role="status"></p>
   <main id="main"></main>
 </div>
-<nav aria-label="เมนู"><div class="in"><a href="#add"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg><span>บันทึก</span></a><a href="#status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg><span>สถานะ</span></a><a href="#schedule"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg><span>ตารางซ่อม</span></a><a href="#alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>แจ้งเตือน</span></a><a href="#cars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg><span>โปรไฟล์</span></a></div></nav>
+<nav aria-label="เมนู"><div class="in"><a href="#add"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg><span>บันทึก</span></a><a href="#status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg><span>สถานะ</span></a><a href="#schedule"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg><span>รอบซ่อม</span></a><a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span>ประวัติ</span></a><a href="#alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>แจ้งเตือน</span></a><a href="#cars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg><span>โปรไฟล์</span></a></div></nav>
 <script>
 const KEY='smart-old-car:v1', SOON=0.8;
 // km = ระยะทางต่อรอบ (ไม่ใส่ = นับเวลาอย่างเดียว), mo = เดือนต่อรอบ, main = แสดงเสมอ
@@ -251,9 +251,15 @@ function viewStatus(){
   }),el('p',{class:'hint'},'แถบ = สัดส่วนของรอบที่ใช้ไปแล้ว (น้ำมันเครื่องทุก 5,000 กม. หรือ 6 เดือน, ล้างรถทุกเดือน) รายการอื่นๆ จะโผล่เมื่อบันทึกงานนั้น')];
 }
 
+let histCar='';
 function viewHistory(){
   const box=msgBox();
-  const list=[...recs].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).map(r=>el('div',{class:'rec'},
+  const names=[...new Set(recs.map(r=>r.vehicle))];
+  if(!names.includes(histCar))histCar='';
+  const shown=recs.filter(r=>!histCar||r.vehicle===histCar),total=shown.reduce((s,r)=>s+(+r.cost||0),0);
+  const filt=names.length>1?el('div',{class:'chips'},['',...names].map(n=>el('button',{type:'button',class:'chip','aria-pressed':String(n===histCar),onclick:()=>{histCar=n;render()}},n||'ทุกคัน'))):null;
+  const sum=el('p',{class:'hint'},`${th(shown.length)} รายการ · ค่าใช้จ่ายรวม ${th(total)} บาท`);
+  const list=[...shown].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).map(r=>el('div',{class:'rec'},
     el('div',{},el('b',{},r.type),el('span',{class:'meta'},`${r.vehicle} · ${new Date(r.date).toLocaleDateString('th-TH')}`+(r.km!==''?` · ${th(r.km)} กม.`:'')+(r.cost!==''?` · ${th(r.cost)} บาท`:''))),
     el('button',{class:'del','aria-label':'ลบ '+r.type,onclick:async()=>{
       if(!confirm('ลบรายการ "'+r.type+'" ใช่ไหม? ลบแล้วกู้คืนไม่ได้'))return;
@@ -272,7 +278,7 @@ function viewHistory(){
     const a=el('a',{href:URL.createObjectURL(new Blob([JSON.stringify(recs,null,1)],{type:'application/json'})),download:'ดูแลรถ-สำรอง-'+today()+'.json'});
     a.click();URL.revokeObjectURL(a.href);
   }},'โหลดไฟล์สำรอง');
-  return[box,...(list.length?list:[el('div',{class:'empty'},'ยังไม่มีรายการ')]),
+  return[box,...(filt?[filt]:[]),...(shown.length?[sum]:[]),...(list.length?list:[el('div',{class:'empty'},'ยังไม่มีรายการ')]),
     ...(remoteOn()?[el('div',{class:'row2'},backup)]
     :[el('p',{class:'hint'},'ข้อมูลเก็บในเครื่องนี้เท่านั้น เปลี่ยนมือถือหรือล้างข้อมูลเบราว์เซอร์แล้วจะหาย เชื่อม Google Sheet ที่เมนู "ตั้งค่า" หรือโหลดไฟล์สำรองไว้เป็นระยะ'),
       el('div',{class:'row2'},backup,el('button',{class:'btn alt',onclick:()=>file.click()},'นำเข้าไฟล์สำรอง'),file)])];
