@@ -23,10 +23,13 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
 header .logo{flex:none;width:44px;height:44px;border-radius:12px;background:var(--brand);color:#fff;display:grid;place-items:center}
 header h1{margin:0;font-size:28px}
+header .gear{margin-left:auto;flex:none;width:48px;height:48px;display:grid;place-items:center;border-radius:12px;color:var(--sub);text-decoration:none}
+header .gear:hover{background:#e2e8f0}header .gear[aria-current]{background:#e6f0fc;color:var(--brand)}
+header .gear svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 header p{margin:0;color:var(--sub);font-size:16px}
 nav{position:fixed;inset:auto 0 0 0;z-index:5;display:flex;justify-content:center;background:#fff;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(15,23,42,.08);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
 nav .in{display:flex;gap:4px;width:100%;max-width:560px}
-nav a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px;padding:6px 4px;border-radius:12px;color:var(--sub);font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap}
+nav a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px;padding:6px 4px;border-radius:12px;color:var(--sub);font-size:15px;font-weight:600;text-decoration:none;white-space:nowrap}
 nav a:hover{background:#e2e8f0}
 nav a[aria-current=page]{background:#e6f0fc;color:var(--brand)}
 nav a{position:relative}
@@ -65,6 +68,9 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .ph{display:grid;place-items:center;font-size:56px;aspect-ratio:21/9;max-height:120px;font-weight:700;background:var(--brand-d)}
 .hero .bar{position:absolute;inset:auto 0 0 0;padding:28px 14px 12px;background:linear-gradient(transparent,rgba(0,0,0,.72))}
 .hero select{background:#fff;color:var(--ink);font-weight:700}
+.hero.nophoto{background:none;box-shadow:none;overflow:visible;margin-bottom:12px}
+.hero.nophoto .bar{position:static;padding:0;background:none}
+.hero.nophoto select{border-color:var(--brand)}
 .thumb{width:84px;height:56px;object-fit:cover;border-radius:8px;flex:none}
 .car img.cover{display:block;width:calc(100% + 32px);margin:-16px -16px 12px;aspect-ratio:16/9;object-fit:cover;border-radius:12px 12px 0 0}
 .st{background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
@@ -87,17 +93,27 @@ input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid 
 .legend i{width:12px;height:12px;border-radius:50%;flex:none}
 .legend b{margin-left:auto;font-variant-numeric:tabular-nums}
 .row2{display:grid;gap:10px;margin-top:20px}
-@media(max-width:359px){body{padding-left:12px;padding-right:12px}nav{padding-left:2px;padding-right:2px}nav .in{gap:0}nav a{font-size:12.5px;padding:6px 1px}h1{font-size:24px}header h1{font-size:24px}.big{font-size:36px}}
+@media(max-width:359px){body{padding-left:12px;padding-right:12px}nav{padding-left:2px;padding-right:2px}nav .in{gap:0}nav a{font-size:13px;padding:6px 1px}h1{font-size:24px}header h1{font-size:24px}.big{font-size:36px}}
 @media(min-width:700px){body{padding:32px}.row2{grid-template-columns:1fr 1fr}}
+@media(min-width:900px){
+body{padding:96px 32px 40px}
+.wrap{max-width:960px}
+nav{inset:0 0 auto 0;border-top:0;border-bottom:1px solid var(--line);box-shadow:0 4px 16px rgba(15,23,42,.08);padding:6px 16px}
+nav .in{max-width:960px;gap:8px}
+nav a{flex-direction:row;justify-content:center;gap:8px;min-height:48px;font-size:17px}
+nav svg{width:24px;height:24px}
+main.v-status,main.v-schedule,main.v-alerts,main.v-history{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
+main.v-status>:is(p,h2,.msg,.empty,.chips,.row2,input),main.v-schedule>:is(p,h2,.msg,.empty),main.v-alerts>:is(p,.empty),main.v-history>:is(p,h2,.msg,.empty,.chips,.row2,input){grid-column:1/-1}
+main.v-add,main.v-cars,main.v-settings{max-width:600px;margin:0 auto}
+}
 @media(prefers-reduced-motion:no-preference){.btn,.chip{transition:background .15s}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header><img class="logo" src="icons/icon-192.png" alt="" width="44" height="44"><div><h1>ดูแลรถ</h1><p>จดงาน ดูสถานะ รู้ก่อนถึงกำหนด</p></div></header>
+  <header><img class="logo" src="icons/icon-192.png" alt="" width="44" height="44"><div><h1>ดูแลรถ</h1><p>จดงาน ดูสถานะ รู้ก่อนถึงกำหนด</p></div><a class="gear" href="#settings" aria-label="เชื่อม Google Sheet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 1 0 5 14.5 4.5 4.5 0 0 0 6.5 19z"/></svg></a></header>
   <div id="hero"></div>
-  <p class="hint"><a href="#settings">เชื่อม Google Sheet</a></p>
-  <p id="sync" class="hint" role="status"></p>
+    <p id="sync" class="hint" role="status"></p>
   <main id="main"></main>
 </div>
 <nav aria-label="เมนู"><div class="in"><a href="#add"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg><span>บันทึก</span></a><a href="#status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg><span>สถานะ</span></a><a href="#schedule"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg><span>รอบซ่อม</span></a><a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span>ประวัติ</span></a><a href="#alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>แจ้งเตือน</span></a><a href="#cars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg><span>โปรไฟล์</span></a></div></nav>
@@ -446,8 +462,8 @@ function hero(){
   const h=document.getElementById('hero'),c=activeCar();
   if(!c)return h.replaceChildren();
   const sel=el('select',{'aria-label':'เลือกรถ',onchange:e=>{active=e.target.value;saveCars();render()}},
-    cars.map(x=>el('option',{value:x.id,...(x.id===c.id?{selected:''}:{})},x.name+(x.model?' · '+x.model:''))));
-  h.replaceChildren(el('div',{class:'hero'},c.photo?el('img',{src:c.photo,alt:c.name}):el('div',{class:'ph','aria-hidden':'true'},c.name.slice(0,1)),el('div',{class:'bar'},sel)));
+    cars.map(x=>el('option',{value:x.id,...(x.id===c.id?{selected:''}:{})},x.name+(x.plate?' · '+x.plate:''))));
+  h.replaceChildren(el('div',{class:'hero'+(c.photo?'':' nophoto')},c.photo?el('img',{src:c.photo,alt:c.name}):null,el('div',{class:'bar'},sel)));
 }
 function badge(){
   const a=document.querySelector('nav a[href="#alerts"]'),n=allAlerts().length,b=a.querySelector('.badge');
@@ -458,7 +474,8 @@ function render(){
   const h=VIEWS[location.hash.slice(1)]?location.hash.slice(1):'add';
   if(h!=='add')editing=null;
   document.querySelectorAll('nav a').forEach(a=>a.getAttribute('href')==='#'+h?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));
-  badge();hero();document.getElementById('main').replaceChildren(...VIEWS[h]());
+  document.querySelector('.gear').toggleAttribute('aria-current',h==='settings');
+  badge();hero();const m=document.getElementById('main');m.className='v-'+h;m.replaceChildren(...VIEWS[h]());
 }
 addEventListener('hashchange',render);render();pull();
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
